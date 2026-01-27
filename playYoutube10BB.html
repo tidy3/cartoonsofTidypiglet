@@ -1,0 +1,542 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>YouTube Shorts Player - Visible Loop Version</title>
+    
+    <style>
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Arial, sans-serif;
+            background: #0f0f0f;
+            min-height: 100vh;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            padding: 20px;
+        }
+
+        .player-wrapper {
+            position: relative;
+            width: 315px;
+            height: 560px;
+            background: #000;
+            border-radius: 16px;
+            overflow: hidden;
+            box-shadow: 0 20px 60px rgba(0,0,0,0.8);
+        }
+
+        /* Video Container - Always Visible */
+        .video-container {
+            position: relative;
+            width: 100%;
+            height: 100%;
+            background: #000;
+        }
+
+        /* YouTube iframe - Always Visible */
+        .youtube-iframe {
+            width: 100%;
+            height: 100%;
+            border: none;
+            display: block !important;
+            visibility: visible !important;
+            opacity: 1 !important;
+        }
+
+        /* Loading Overlay */
+        .loading-overlay {
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: rgba(0,0,0,0.8);
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            color: white;
+            z-index: 10;
+        }
+
+        .loading-spinner {
+            width: 40px;
+            height: 40px;
+            border: 3px solid rgba(255,255,255,0.3);
+            border-top-color: #ff0000;
+            border-radius: 50%;
+            animation: spin 1s linear infinite;
+        }
+
+        .loading-text {
+            margin-top: 15px;
+            font-size: 14px;
+        }
+
+        @keyframes spin {
+            to { transform: rotate(360deg); }
+        }
+
+        /* Loop Counter */
+        .loop-counter {
+            position: absolute;
+            top: 20px;
+            right: 20px;
+            background: rgba(0,0,0,0.7);
+            color: white;
+            padding: 8px 12px;
+            border-radius: 20px;
+            font-size: 12px;
+            z-index: 25;
+        }
+
+        /* Controls */
+        .controls {
+            position: absolute;
+            bottom: 0;
+            left: 0;
+            right: 0;
+            padding: 20px;
+            background: linear-gradient(to top, rgba(0,0,0,0.8), transparent);
+            display: flex;
+            align-items: center;
+            gap: 15px;
+            z-index: 15;
+            opacity: 0;
+            transition: opacity 0.3s;
+        }
+
+        .player-wrapper:hover .controls {
+            opacity: 1;
+        }
+
+        .play-pause-btn {
+            width: 40px;
+            height: 40px;
+            border-radius: 50%;
+            background: rgba(255,255,255,0.2);
+            border: none;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: white;
+            font-size: 16px;
+            transition: transform 0.2s;
+        }
+
+        .play-pause-btn:hover {
+            transform: scale(1.1);
+        }
+
+        .play-pause-icon {
+            width: 0;
+            height: 0;
+            border-left: 14px solid white;
+            border-top: 8px solid transparent;
+            border-bottom: 8px solid transparent;
+            margin-left: 3px;
+        }
+
+        .play-pause-icon.paused {
+            width: 14px;
+            height: 18px;
+            border: none;
+            background: none;
+            position: relative;
+        }
+
+        .play-pause-icon.paused::before,
+        .play-pause-icon.paused::after {
+            content: '';
+            position: absolute;
+            width: 5px;
+            height: 18px;
+            background: white;
+            border-radius: 1px;
+        }
+
+        .play-pause-icon.paused::before {
+            left: 0;
+        }
+
+        .play-pause-icon.paused::after {
+            right: 0;
+        }
+
+        .progress-container {
+            flex: 1;
+            height: 4px;
+            background: rgba(255,255,255,0.2);
+            border-radius: 2px;
+            cursor: pointer;
+            position: relative;
+        }
+
+        .progress-bar {
+            height: 100%;
+            background: #ff0000;
+            border-radius: 2px;
+            width: 0%;
+            transition: width 0.1s;
+        }
+
+        .time-display {
+            color: white;
+            font-size: 12px;
+            min-width: 50px;
+            text-align: right;
+        }
+
+        /* Custom End Screen */
+        .custom-end-screen {
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            display: none;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            text-align: center;
+            color: white;
+            padding: 20px;
+            z-index: 20;
+        }
+
+        .custom-end-screen.show {
+            display: flex;
+        }
+
+        .end-content {
+            max-width: 280px;
+        }
+
+        .end-icon {
+            font-size: 4rem;
+            margin-bottom: 1rem;
+            animation: bounce 1s infinite;
+        }
+
+        .end-title {
+            font-size: 1.5rem;
+            margin-bottom: 0.5rem;
+            font-weight: 600;
+        }
+
+        .end-subtitle {
+            font-size: 1rem;
+            margin-bottom: 1.5rem;
+            opacity: 0.9;
+        }
+
+        .end-button {
+            background: rgba(255,255,255,0.2);
+            color: white;
+            border: 2px solid white;
+            padding: 12px 24px;
+            border-radius: 25px;
+            font-size: 1rem;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            text-decoration: none;
+            display: inline-block;
+            backdrop-filter: blur(10px);
+        }
+
+        .end-button:hover {
+            background: white;
+            color: #667eea;
+            transform: translateY(-2px);
+            box-shadow: 0 10px 20px rgba(0,0,0,0.2);
+        }
+
+        /* Animations */
+        @keyframes bounce {
+            0%, 20%, 50%, 80%, 100% { transform: translateY(0); }
+            40% { transform: translateY(-10px); }
+            60% { transform: translateY(-5px); }
+        }
+
+        .bounce {
+            animation: bounce 1s infinite;
+        }
+
+        /* Continue Watching Button */
+        .continue-button {
+            position: absolute;
+            bottom: 20px;
+            left: 50%;
+            transform: translateX(-50%);
+            background: rgba(255,255,255,0.9);
+            color: #667eea;
+            border: none;
+            padding: 12px 24px;
+            border-radius: 25px;
+            font-size: 1rem;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            z-index: 25;
+            display: none;
+        }
+
+        .continue-button:hover {
+            background: white;
+            transform: translateX(-50%) translateY(-2px);
+            box-shadow: 0 10px 20px rgba(0,0,0,0.2);
+        }
+
+        .continue-button.show {
+            display: block;
+        }
+    </style>
+</head>
+<body>
+
+    <div class="player-wrapper" id="playerWrapper">
+        <!-- Loop Counter -->
+        <div class="loop-counter" id="loopCounter" style="display: none;">
+            Loop: <span id="loopCount">1</span>/∞
+        </div>
+
+        <!-- Continue Watching Button -->
+        <button class="continue-button" id="continueBtn" onclick="continueWatching()">
+            Continue Watching ▶
+        </button>
+
+        <!-- Video Container -->
+        <div class="video-container">
+            <!-- Loading Overlay -->
+            <div class="loading-overlay" id="loadingOverlay">
+                <div class="loading-spinner"></div>
+                <div class="loading-text">Loading cartoon...</div>
+            </div>
+
+            <!-- YouTube iframe - Always visible for view counting -->
+            <iframe 
+                id="youtubeFrame"
+                class="youtube-iframe"
+                width="315" 
+                height="560"
+                src="https://www.youtube.com/embed/KTc1D9hJq2M?enablejsapi=1&playsinline=1&rel=0&modestbranding=1&controls=0&disablekb=1&iv_load_policy=3&showinfo=0&autoplay=1&loop=1&playlist=KTc1D9hJq2M&fs=0&cc_load_policy=0"
+                frameborder="0"
+                allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"
+                referrerpolicy="strict-origin-when-cross-origin"
+                allowfullscreen>
+            </iframe>
+
+            <!-- Custom End Screen -->
+            <div class="custom-end-screen" id="endScreen">
+                <div class="end-content">
+                    <div class="end-icon bounce">🎬</div>
+                    <h3 class="end-title">More Amazing Cartoons!</h3>
+                    <p class="end-subtitle">Discover our collection of fun and educational content</p>
+                    <button class="end-button" onclick="watchMore()">
+                        Explore More Videos 🚀
+                    </button>
+                </div>
+            </div>
+            
+            <!-- Controls -->
+            <div class="controls" id="controls">
+                <button class="play-pause-btn" id="playPauseBtn" onclick="togglePlay()">
+                    <div class="play-pause-icon" id="playPauseIcon"></div>
+                </button>
+                <div class="progress-container" onclick="seek(event)">
+                    <div class="progress-bar" id="progressBar"></div>
+                </div>
+                <div class="time-display" id="timeDisplay">0:00 / 0:00</div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // Configuration
+        const CARTOON_ID = 'KTc1D9hJq2M';
+        let player;
+        let isReady = false;
+        let isPlaying = false;
+        let updateInterval;
+        let videoDuration = 0;
+        let endScreenShown = false;
+        let playCount = 0;
+
+        // Load YouTube API
+        var tag = document.createElement('script');
+        tag.src = "https://www.youtube.com/iframe_api";
+        var firstScriptTag = document.getElementsByTagName('script')[0];
+        firstScriptTag.parentNode.insertBefore(tag, firstScriptTag);
+
+        function onYouTubeIframeAPIReady() {
+            console.log('YouTube API ready');
+            createPlayer();
+        }
+
+        function createPlayer() {
+            player = new YT.Player('youtubeFrame', {
+                events: {
+                    'onReady': onPlayerReady,
+                    'onStateChange': onPlayerStateChange,
+                    'onError': onPlayerError
+                }
+            });
+        }
+
+        function onPlayerReady(event) {
+            console.log('Player ready');
+            isReady = true;
+            
+            // Hide loading overlay
+            document.getElementById('loadingOverlay').style.display = 'none';
+            
+            // Get duration
+            videoDuration = player.getDuration();
+            updateTimeDisplay();
+            
+            // Start playing
+            player.playVideo();
+            isPlaying = true;
+            document.getElementById('playPauseIcon').className = 'play-pause-icon paused';
+            startProgressUpdate();
+            
+            // Show loop counter
+            document.getElementById('loopCounter').style.display = 'block';
+            
+            // Hide continue button initially
+            document.getElementById('continueBtn').style.display = 'none';
+        }
+
+        function onPlayerStateChange(event) {
+            console.log('State changed:', event.data);
+            
+            if (event.data == YT.PlayerState.PLAYING) {
+                isPlaying = true;
+                document.getElementById('playPauseIcon').className = 'play-pause-icon paused';
+                startProgressUpdate();
+                document.getElementById('continueBtn').style.display = 'none';
+            } else if (event.data == YT.PlayerState.PAUSED) {
+                isPlaying = false;
+                document.getElementById('playPauseIcon').className = 'play-pause-icon';
+                stopProgressUpdate();
+                document.getElementById('continueBtn').style.display = 'block';
+            } else if (event.data == YT.PlayerState.ENDED) {
+                handleVideoEnded();
+            }
+        }
+
+        function onPlayerError(event) {
+            console.error('Player error:', event.data);
+            showEndScreen();
+        }
+
+        function handleVideoEnded() {
+            console.log('Video ended');
+            playCount++;
+            
+            // YouTube's loop parameter should handle automatic replay
+            // But we can also manually restart if needed
+            setTimeout(() => {
+                if (!endScreenShown) {
+                    player.seekTo(0);
+                    player.playVideo();
+                }
+            }, 100);
+        }
+
+        function togglePlay() {
+            if (!isReady) return;
+            
+            if (isPlaying) {
+                player.pauseVideo();
+            } else {
+                player.playVideo();
+            }
+        }
+
+        function continueWatching() {
+            if (!isReady) return;
+            
+            // Continue playing from current position
+            player.playVideo();
+            document.getElementById('continueBtn').style.display = 'none';
+        }
+
+        function watchMore() {
+            // Hide end screen and continue playing
+            document.getElementById('endScreen').classList.remove('show');
+            document.getElementById('youtubeFrame').style.display = 'block';
+            
+            // Continue playing
+            player.seekTo(0);
+            player.playVideo();
+            document.getElementById('continueBtn').style.display = 'none';
+        }
+
+        function startProgressUpdate() {
+            updateInterval = setInterval(() => {
+                try {
+                    const current = player.getCurrentTime();
+                    const duration = player.getDuration();
+                    const percent = (current / duration) * 100;
+                    document.getElementById('progressBar').style.display = 'block';
+                    document.getElementById('progressBar').style.width = percent + '%';
+                    updateTimeDisplay(current, duration);
+                } catch(e) {}
+            }, 100);
+        }
+
+        function stopProgressUpdate() {
+            clearInterval(updateInterval);
+        }
+
+        function updateTimeDisplay(current = 0, duration = videoDuration) {
+            const currentStr = formatTime(current);
+            const durationStr = formatTime(duration);
+            document.getElementById('timeDisplay').textContent = currentStr + ' / ' + durationStr;
+        }
+
+        function formatTime(seconds) {
+            if (!seconds || isNaN(seconds)) return '0:00';
+            const mins = Math.floor(seconds / 60);
+            const secs = Math.floor(seconds % 60);
+            return mins + ':' + (secs < 10 ? '0' : '') + secs;
+        }
+
+        function seek(event) {
+            if (!isReady) return;
+            const rect = event.currentTarget.getBoundingClientRect();
+            const percent = (event.clientX - rect.left) / rect.width;
+            const duration = player.getDuration();
+            player.seekTo(percent * duration, true);
+        }
+
+        // Auto-start with loading
+        window.addEventListener('load', () => {
+            setTimeout(() => {
+                startVideo();
+            }, 500);
+        });
+
+        // Timeout fallback
+        setTimeout(() => {
+            if (!isReady) {
+                document.getElementById('loadingOverlay').style.display = 'none';
+                showEndScreen();
+            }
+        }, 15000);
+    </script>
+
+</body>
+</html>
