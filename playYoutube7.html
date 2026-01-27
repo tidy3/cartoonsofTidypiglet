@@ -1,0 +1,458 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>YouTube Shorts Player</title>
+    <style>
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Arial, sans-serif;
+            background: #0f0f0f;
+            min-height: 100vh;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            padding: 20px;
+        }
+
+        .player-wrapper {
+            position: relative;
+            width: 315px;
+            height: 560px;
+            background: #000;
+            border-radius: 16px;
+            overflow: hidden;
+            box-shadow: 0 20px 60px rgba(0,0,0,0.8);
+        }
+
+        #player {
+            width: 100%;
+            height: 100%;
+        }
+
+        /* Loading Screen */
+        .loading-screen {
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: #000;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            z-index: 20;
+            transition: opacity 0.3s;
+        }
+
+        .loading-screen.hidden {
+            opacity: 0;
+            pointer-events: none;
+        }
+
+        .spinner {
+            width: 50px;
+            height: 50px;
+            border: 3px solid rgba(255,255,255,0.1);
+            border-top-color: #ff0000;
+            border-radius: 50%;
+            animation: spin 1s linear infinite;
+        }
+
+        @keyframes spin {
+            to { transform: rotate(360deg); }
+        }
+
+        .loading-text {
+            color: #fff;
+            margin-top: 15px;
+            font-size: 14px;
+        }
+
+        /* Big Play Button */
+        .big-play-button {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            width: 80px;
+            height: 80px;
+            background: rgba(255,0,0,0.9);
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            cursor: pointer;
+            z-index: 10;
+            transition: all 0.2s;
+            box-shadow: 0 4px 20px rgba(0,0,0,0.4);
+        }
+
+        .big-play-button:hover {
+            transform: translate(-50%, -50%) scale(1.1);
+            background: #ff0000;
+        }
+
+        .big-play-button.hidden {
+            display: none;
+        }
+
+        .big-play-button::after {
+            content: '';
+            width: 0;
+            height: 0;
+            border-left: 28px solid white;
+            border-top: 16px solid transparent;
+            border-bottom: 16px solid transparent;
+            margin-left: 6px;
+        }
+
+        /* Controls Bar */
+        .controls-bar {
+            position: absolute;
+            bottom: 0;
+            left: 0;
+            right: 0;
+            padding: 20px;
+            background: linear-gradient(to top, rgba(0,0,0,0.9), transparent);
+            display: flex;
+            align-items: center;
+            gap: 15px;
+            z-index: 10;
+            opacity: 0;
+            transition: opacity 0.3s;
+        }
+
+        .player-wrapper:hover .controls-bar {
+            opacity: 1;
+        }
+
+        .control-btn {
+            width: 40px;
+            height: 40px;
+            border-radius: 50%;
+            background: rgba(255,255,255,0.2);
+            border: none;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            transition: all 0.2s;
+        }
+
+        .control-btn:hover {
+            background: rgba(255,255,255,0.3);
+            transform: scale(1.1);
+        }
+
+        .play-pause-icon {
+            width: 0;
+            height: 0;
+            border-left: 14px solid white;
+            border-top: 8px solid transparent;
+            border-bottom: 8px solid transparent;
+            margin-left: 3px;
+        }
+
+        .play-pause-icon.paused {
+            width: 14px;
+            height: 18px;
+            border: none;
+            background: none;
+            position: relative;
+        }
+
+        .play-pause-icon.paused::before,
+        .play-pause-icon.paused::after {
+            content: '';
+            position: absolute;
+            width: 5px;
+            height: 18px;
+            background: white;
+            border-radius: 1px;
+        }
+
+        .play-pause-icon.paused::before {
+            left: 0;
+        }
+
+        .play-pause-icon.paused::after {
+            right: 0;
+        }
+
+        /* Progress Bar */
+        .progress-container {
+            flex: 1;
+            height: 4px;
+            background: rgba(255,255,255,0.2);
+            border-radius: 2px;
+            cursor: pointer;
+            position: relative;
+        }
+
+        .progress-bar {
+            height: 100%;
+            background: #ff0000;
+            border-radius: 2px;
+            width: 0%;
+            transition: width 0.1s;
+        }
+
+        .time-display {
+            color: white;
+            font-size: 12px;
+            min-width: 45px;
+            text-align: right;
+        }
+
+        /* Error Screen */
+        .error-screen {
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: #1a1a1a;
+            display: none;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            color: white;
+            padding: 20px;
+            text-align: center;
+            z-index: 30;
+        }
+
+        .error-screen.show {
+            display: flex;
+        }
+
+        .error-icon {
+            font-size: 48px;
+            margin-bottom: 10px;
+        }
+    </style>
+</head>
+<body>
+
+    <div class="player-wrapper" id="playerWrapper">
+        <!-- YouTube Player -->
+        <div id="player"></div>
+        
+        <!-- Loading Screen -->
+        <div class="loading-screen" id="loadingScreen">
+            <div class="spinner"></div>
+            <div class="loading-text">Loading...</div>
+        </div>
+        
+        <!-- Big Play Button (initial) -->
+        <div class="big-play-button" id="bigPlayBtn" onclick="startPlayback()"></div>
+        
+        <!-- Controls -->
+        <div class="controls-bar" id="controlsBar">
+            <button class="control-btn" id="playPauseBtn" onclick="togglePlay()">
+                <div class="play-pause-icon" id="playPauseIcon"></div>
+            </button>
+            <div class="progress-container" id="progressContainer" onclick="seek(event)">
+                <div class="progress-bar" id="progressBar"></div>
+            </div>
+            <div class="time-display" id="timeDisplay">0:00 / 0:00</div>
+        </div>
+        
+        <!-- Error Screen -->
+        <div class="error-screen" id="errorScreen">
+            <div class="error-icon">⚠️</div>
+            <div>Failed to load video</div>
+            <div style="font-size: 12px; opacity: 0.7; margin-top: 10px;">This video may be restricted</div>
+        </div>
+    </div>
+
+    <script>
+        var player;
+        var isPlaying = false;
+        var isReady = false;
+        var updateInterval;
+        var videoDuration = 0;
+
+        // Load YouTube API
+        var tag = document.createElement('script');
+        tag.src = "https://www.youtube.com/iframe_api";
+        var firstScriptTag = document.getElementsByTagName('script')[0];
+        firstScriptTag.parentNode.insertBefore(tag, firstScriptTag);
+
+        function onYouTubeIframeAPIReady() {
+            console.log('API Ready');
+            player = new YT.Player('player', {
+                height: '560',
+                width: '315',
+                videoId: 'iMgdzVQPR7E',
+                playerVars: {
+                    'playsinline': 1,
+                    'rel': 0,
+                    'modestbranding': 1,
+                    'controls': 0,
+                    'disablekb': 1,
+                    'iv_load_policy': 3,
+                    'showinfo': 0,
+                    'origin': window.location.origin
+                },
+                events: {
+                    'onReady': onPlayerReady,
+                    'onStateChange': onPlayerStateChange,
+                    'onError': onPlayerError
+                }
+            });
+        }
+
+        function onPlayerReady(event) {
+            console.log('Player Ready');
+            isReady = true;
+            
+            // Get video data
+            try {
+                videoDuration = player.getDuration();
+                updateTimeDisplay();
+            } catch(e) {
+                console.log('Duration not available yet');
+            }
+            
+            // Hide loading
+            document.getElementById('loadingScreen').classList.add('hidden');
+            
+            // Mute initially (required for autoplay in some browsers)
+            player.mute();
+        }
+
+        function onPlayerStateChange(event) {
+            console.log('State changed:', event.data);
+            
+            // Update duration when available
+            if (event.data == YT.PlayerState.PLAYING) {
+                isPlaying = true;
+                videoDuration = player.getDuration();
+                updatePlayButton();
+                document.getElementById('bigPlayBtn').classList.add('hidden');
+                startProgressUpdate();
+            } else if (event.data == YT.PlayerState.PAUSED) {
+                isPlaying = false;
+                updatePlayButton();
+                stopProgressUpdate();
+            } else if (event.data == YT.PlayerState.ENDED) {
+                isPlaying = false;
+                updatePlayButton();
+                document.getElementById('bigPlayBtn').classList.remove('hidden');
+                stopProgressUpdate();
+            }
+        }
+
+        function onPlayerError(event) {
+            console.error('Player Error:', event.data);
+            document.getElementById('loadingScreen').classList.add('hidden');
+            document.getElementById('errorScreen').classList.add('show');
+        }
+
+        function startPlayback() {
+            if (!isReady) return;
+            
+            console.log('Starting playback');
+            
+            // Unmute first
+            player.unMute();
+            player.setVolume(100);
+            
+            // Then play
+            player.playVideo();
+        }
+
+        function togglePlay() {
+            if (!isReady) return;
+            
+            if (isPlaying) {
+                player.pauseVideo();
+            } else {
+                player.playVideo();
+            }
+        }
+
+        function updatePlayButton() {
+            var icon = document.getElementById('playPauseIcon');
+            if (isPlaying) {
+                icon.classList.add('paused');
+            } else {
+                icon.classList.remove('paused');
+            }
+        }
+
+        function startProgressUpdate() {
+            updateInterval = setInterval(function() {
+                if (!isPlaying) return;
+                
+                try {
+                    var current = player.getCurrentTime();
+                    var duration = player.getDuration();
+                    
+                    if (duration > 0) {
+                        var percent = (current / duration) * 100;
+                        document.getElementById('progressBar').style.width = percent + '%';
+                        updateTimeDisplay(current, duration);
+                    }
+                } catch(e) {
+                    // Ignore errors
+                }
+            }, 100);
+        }
+
+        function stopProgressUpdate() {
+            clearInterval(updateInterval);
+        }
+
+        function updateTimeDisplay(current, duration) {
+            if (!current) current = 0;
+            if (!duration) duration = videoDuration || 0;
+            
+            var currentStr = formatTime(current);
+            var durationStr = formatTime(duration);
+            document.getElementById('timeDisplay').textContent = currentStr + ' / ' + durationStr;
+        }
+
+        function formatTime(seconds) {
+            if (!seconds || isNaN(seconds)) return '0:00';
+            var mins = Math.floor(seconds / 60);
+            var secs = Math.floor(seconds % 60);
+            return mins + ':' + (secs < 10 ? '0' : '') + secs;
+        }
+
+        function seek(event) {
+            if (!isReady || !player.getDuration) return;
+            
+            var container = document.getElementById('progressContainer');
+            var rect = container.getBoundingClientRect();
+            var clickX = event.clientX - rect.left;
+            var percent = clickX / rect.width;
+            var duration = player.getDuration();
+            
+            if (duration > 0) {
+                var seekTime = percent * duration;
+                player.seekTo(seekTime, true);
+            }
+        }
+
+        // Fallback: If API fails to load after 10 seconds, show error
+        setTimeout(function() {
+            if (!isReady) {
+                document.getElementById('loadingScreen').classList.add('hidden');
+                document.getElementById('errorScreen').classList.add('show');
+            }
+        }, 10000);
+    </script>
+
+</body>
+</html>

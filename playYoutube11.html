@@ -1,0 +1,332 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>YouTube Shorts Player - Working Version</title>
+    <style>
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Arial, sans-serif;
+            background: #0f0f0f;
+            min-height: 100vh;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            padding: 20px;
+        }
+
+        .player-wrapper {
+            position: relative;
+            width: 315px;
+            height: 560px;
+            background: #000;
+            border-radius: 16px;
+            overflow: hidden;
+            box-shadow: 0 20px 60px rgba(0,0,0,0.8);
+        }
+
+        /* Direct iframe approach */
+        .youtube-iframe {
+            width: 100%;
+            height: 100%;
+            border: none;
+            display: block;
+        }
+
+        /* Loading overlay */
+        .loading-overlay {
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: rgba(0,0,0,0.8);
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            color: white;
+            z-index: 10;
+        }
+
+        .loading-spinner {
+            width: 40px;
+            height: 40px;
+            border: 3px solid rgba(255,255,255,0.3);
+            border-top-color: #ff0000;
+            border-radius: 50%;
+            animation: spin 1s linear infinite;
+        }
+
+        @keyframes spin {
+            to { transform: rotate(360deg); }
+        }
+
+        .loading-text {
+            margin-top: 15px;
+            font-size: 14px;
+        }
+
+        /* Play button */
+        .play-button {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            width: 80px;
+            height: 80px;
+            background: rgba(255,0,0,0.9);
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            cursor: pointer;
+            z-index: 15;
+            transition: transform 0.2s;
+        }
+
+        .play-button:hover {
+            transform: translate(-50%, -50%) scale(1.1);
+        }
+
+        .play-button::after {
+            content: '';
+            width: 0;
+            height: 0;
+            border-left: 28px solid white;
+            border-top: 16px solid transparent;
+            border-bottom: 16px solid transparent;
+            margin-left: 6px;
+        }
+
+        /* Controls */
+        .controls {
+            position: absolute;
+            bottom: 0;
+            left: 0;
+            right: 0;
+            padding: 15px;
+            background: linear-gradient(to top, rgba(0,0,0,0.8), transparent);
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            z-index: 20;
+            opacity: 0;
+            transition: opacity 0.3s;
+        }
+
+        .player-wrapper:hover .controls {
+            opacity: 1;
+        }
+
+        .control-btn {
+            width: 36px;
+            height: 36px;
+            border-radius: 50%;
+            background: rgba(255,255,255,0.2);
+            border: none;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: white;
+            font-size: 14px;
+            transition: transform 0.2s;
+        }
+
+        .control-btn:hover {
+            transform: scale(1.1);
+        }
+
+        .progress-container {
+            flex: 1;
+            height: 4px;
+            background: rgba(255,255,255,0.2);
+            border-radius: 2px;
+            cursor: pointer;
+            position: relative;
+        }
+
+        .progress-bar {
+            height: 100%;
+            background: #ff0000;
+            border-radius: 2px;
+            width: 0%;
+            transition: width 0.1s;
+        }
+    </style>
+</head>
+<body>
+
+    <div class="player-wrapper" id="playerWrapper">
+        <!-- Simple iframe with onload detection -->
+        <iframe 
+            id="youtubeFrame"
+            class="youtube-iframe"
+            src="https://www.youtube.com/embed/iMgdzVQPR7E?enablejsapi=1&playsinline=1&rel=0&modestbranding=1&controls=0&disablekb=1&iv_load_policy=3&showinfo=0&mute=1"
+            frameborder="0"
+            allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"
+            allowfullscreen
+            onload="onIframeLoad()">
+        </iframe>
+        
+        <!-- Loading overlay -->
+        <div class="loading-overlay" id="loadingOverlay">
+            <div class="loading-spinner"></div>
+            <div class="loading-text">Loading video...</div>
+        </div>
+        
+        <!-- Play button (initially visible) -->
+        <div class="play-button" id="playButton" onclick="startPlayback()"></div>
+        
+        <!-- Controls -->
+        <div class="controls" id="controls">
+            <button class="control-btn" id="playPauseBtn" onclick="togglePlay()">▶</button>
+            <div class="progress-container" onclick="seek(event)">
+                <div class="progress-bar" id="progressBar"></div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        let player;
+        let isReady = false;
+        let isPlaying = false;
+        let updateInterval;
+        let iframeLoaded = false;
+
+        // Load YouTube API
+        function loadYouTubeAPI() {
+            if (window.YT) return;
+            
+            const tag = document.createElement('script');
+            tag.src = "https://www.youtube.com/iframe_api";
+            const firstScriptTag = document.getElementsByTagName('script')[0];
+            firstScriptTag.parentNode.insertBefore(tag, firstScriptTag);
+        }
+
+        function onIframeLoad() {
+            console.log('Iframe loaded');
+            iframeLoaded = true;
+            
+            // Hide loading after iframe loads
+            setTimeout(() => {
+                document.getElementById('loadingOverlay').style.display = 'none';
+            }, 1000);
+        }
+
+        function onYouTubeIframeAPIReady() {
+            console.log('YouTube API ready');
+            // Player will be created when user clicks play
+        }
+
+        function startPlayback() {
+            if (!iframeLoaded) {
+                alert('Video still loading...');
+                return;
+            }
+
+            // Hide play button
+            document.getElementById('playButton').style.display = 'none';
+            
+            // Load YouTube API if not loaded
+            loadYouTubeAPI();
+            
+            // Create player instance
+            player = new YT.Player('youtubeFrame', {
+                events: {
+                    'onReady': onPlayerReady,
+                    'onStateChange': onPlayerStateChange,
+                    'onError': onPlayerError
+                }
+            });
+        }
+
+        function onPlayerReady(event) {
+            console.log('Player ready');
+            isReady = true;
+            
+            // Unmute and play
+            player.unMute();
+            player.setVolume(100);
+            player.playVideo();
+        }
+
+        function onPlayerStateChange(event) {
+            if (event.data == YT.PlayerState.PLAYING) {
+                isPlaying = true;
+                document.getElementById('playPauseBtn').innerHTML = '❚❚';
+                startProgressUpdate();
+            } else if (event.data == YT.PlayerState.PAUSED) {
+                isPlaying = false;
+                document.getElementById('playPauseBtn').innerHTML = '▶';
+                stopProgressUpdate();
+            } else if (event.data == YT.PlayerState.ENDED) {
+                isPlaying = false;
+                document.getElementById('playPauseBtn').innerHTML = '▶';
+                stopProgressUpdate();
+            }
+        }
+
+        function onPlayerError(event) {
+            console.error('Player error:', event.data);
+            document.getElementById('loadingOverlay').style.display = 'none';
+            document.getElementById('playButton').style.display = 'block';
+            
+            // Show error and provide fallback
+            alert('Video failed to load. This might be due to browser restrictions. Click OK to open on YouTube.');
+            window.open('https://www.youtube.com/shorts/iMgdzVQPR7E', '_blank');
+        }
+
+        function togglePlay() {
+            if (!isReady) return;
+            
+            if (isPlaying) {
+                player.pauseVideo();
+            } else {
+                player.playVideo();
+            }
+        }
+
+        function startProgressUpdate() {
+            updateInterval = setInterval(() => {
+                try {
+                    const current = player.getCurrentTime();
+                    const duration = player.getDuration();
+                    const percent = (current / duration) * 100;
+                    document.getElementById('progressBar').style.width = percent + '%';
+                } catch(e) {}
+            }, 100);
+        }
+
+        function stopProgressUpdate() {
+            clearInterval(updateInterval);
+        }
+
+        function seek(event) {
+            if (!isReady) return;
+            const rect = event.currentTarget.getBoundingClientRect();
+            const percent = (event.clientX - rect.left) / rect.width;
+            const duration = player.getDuration();
+            player.seekTo(percent * duration, true);
+        }
+
+        // Fallback: If iframe doesn't load in 5 seconds, show error
+        setTimeout(() => {
+            if (!iframeLoaded) {
+                document.getElementById('loadingOverlay').style.display = 'none';
+                document.getElementById('playButton').style.display = 'block';
+                console.error('Iframe failed to load');
+            }
+        }, 5000);
+    </script>
+
+</body>
+</html>

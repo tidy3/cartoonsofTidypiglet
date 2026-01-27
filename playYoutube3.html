@@ -1,0 +1,149 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>YouTube Shorts Embed</title>
+    <style>
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Arial, sans-serif;
+            background: #0f0f0f;
+            min-height: 100vh;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            padding: 20px;
+        }
+
+        .video-wrapper {
+            position: relative;
+            width: 315px;
+            height: 560px;
+            background: #000;
+            border-radius: 16px;
+            overflow: hidden;
+            box-shadow: 0 20px 60px rgba(0,0,0,0.8);
+        }
+
+        iframe {
+            width: 100%;
+            height: 100%;
+            border: none;
+            display: block;
+        }
+
+        .fallback {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            color: white;
+            text-align: center;
+            padding: 20px;
+            text-decoration: none;
+        }
+
+        .fallback:hover {
+            opacity: 0.95;
+        }
+
+        .play-icon {
+            width: 80px;
+            height: 80px;
+            background: rgba(255,255,255,0.2);
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            margin-bottom: 20px;
+            font-size: 30px;
+        }
+
+        .fallback-text {
+            font-size: 16px;
+            font-weight: 600;
+        }
+
+        .fallback-subtext {
+            font-size: 12px;
+            opacity: 0.8;
+            margin-top: 8px;
+        }
+    </style>
+</head>
+<body>
+
+    <div class="video-wrapper" id="videoContainer">
+        <!-- YouTube Embed -->
+        <iframe 
+            id="youtubeFrame"
+            src="https://www.youtube.com/embed/iMgdzVQPR7E?autoplay=0&rel=0&modestbranding=1&playsinline=1"
+            allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"
+            allowfullscreen
+            referrerpolicy="no-referrer-when-downgrade"
+            loading="eager">
+        </iframe>
+    </div>
+
+    <script>
+        // Check if iframe loaded successfully
+        window.addEventListener('load', function() {
+            var iframe = document.getElementById('youtubeFrame');
+            var container = document.getElementById('videoContainer');
+            
+            // Try to detect if iframe failed to load
+            setTimeout(function() {
+                try {
+                    // Try to access iframe content (will fail if cross-origin or not loaded)
+                    var iframeDoc = iframe.contentDocument || iframe.contentWindow.document;
+                    
+                    // If we can access and it's empty or has error, show fallback
+                    if (iframeDoc && (iframeDoc.body.innerHTML === '' || iframeDoc.body.innerHTML.includes('error'))) {
+                        showFallback();
+                    }
+                } catch(e) {
+                    // Cross-origin error means it loaded (good)
+                    console.log('Iframe loaded (cross-origin protected)');
+                }
+            }, 3000);
+            
+            // Additional check: monitor for load errors
+            iframe.onerror = function() {
+                showFallback();
+            };
+        });
+
+        function showFallback() {
+            var container = document.getElementById('videoContainer');
+            container.innerHTML = 
+                '<a href="https://www.youtube.com/shorts/iMgdzVQPR7E" target="_blank" class="fallback">' +
+                    '<div class="play-icon">▶</div>' +
+                    '<div class="fallback-text">Watch on YouTube</div>' +
+                    '<div class="fallback-subtext">Tap to open video</div>' +
+                '</a>';
+        }
+
+        // Force fallback if video is blocked after 5 seconds
+        setTimeout(function() {
+            var iframe = document.getElementById('youtubeFrame');
+            if (iframe && iframe.offsetHeight < 100) {
+                showFallback();
+            }
+        }, 5000);
+    </script>
+
+</body>
+</html>

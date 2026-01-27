@@ -1,0 +1,117 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>YouTube Shorts Embed</title>
+    <style>
+        /* Reset and base styles */
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+        }
+
+        body {
+            font-family: Arial, sans-serif;
+            padding: 20px;
+            background: #f0f0f0;
+        }
+
+        /* Container for the Short - maintains 9:16 aspect ratio */
+        .shorts-container {
+            position: relative;
+            width: 100%;
+            max-width: 315px; /* You can adjust this */
+            margin: 0 auto;
+            /* 9:16 aspect ratio = 56.25% padding-bottom for 16:9, 
+               but for 9:16 we calculate differently */
+            aspect-ratio: 9 / 16;
+            background: #000;
+            border-radius: 12px;
+            overflow: hidden;
+            box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+        }
+
+        /* Fallback for older browsers without aspect-ratio support */
+        @supports not (aspect-ratio: 9 / 16) {
+            .shorts-container {
+                height: 0;
+                padding-bottom: 177.78%; /* 16/9 * 100% = 177.78% for 9:16 ratio */
+            }
+        }
+
+        /* The iframe itself */
+        .shorts-container iframe {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            display: block; /* CRITICAL: removes inline spacing issues */
+            border: none;
+        }
+
+        /* Alternative: Fixed dimensions approach */
+        .shorts-container-fixed {
+            width: 315px;
+            height: 560px;
+            margin: 0 auto;
+            background: #000;
+            border-radius: 12px;
+            overflow: hidden;
+        }
+
+        .shorts-container-fixed iframe {
+            width: 100%;
+            height: 100%;
+            display: block;
+            border: none;
+        }
+    </style>
+</head>
+<body>
+
+    <!-- Method 1: Responsive 9:16 Aspect Ratio (Recommended) -->
+    <!--    <div class="shorts-container">
+        <iframe 
+            src="https://www.youtube.com/embed/iMgdzVQPR7E"
+            title="YouTube Shorts player"
+            allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"
+            allowfullscreen>
+        </iframe>
+    </div>-->
+
+    <!-- Method 2: Fixed Dimensions (315x560) -->
+
+    <div class="shorts-container-fixed">
+        <iframe 
+            src="https://www.youtube.com/embed/iMgdzVQPR7E"
+            title="YouTube Shorts player"
+            allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"
+            allowfullscreen>
+        </iframe>
+    </div>
+    
+<div>	
+	<iframe 
+    src="https://www.youtube.com/embed/j-q366U2Kjs?rel=0&modestbranding=1"
+    width="315" 
+    height="560"
+    allowfullscreen>
+</iframe>
+
+
+<iframe 
+  width="315" 
+  height="560"
+  src="https://www.youtube.com/embed/j-q366U2Kjs?rel=0"
+  allowfullscreen>
+</iframe>
+
+
+</div>
+	
+
+</body>
+</html>

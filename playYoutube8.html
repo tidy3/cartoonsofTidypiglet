@@ -1,0 +1,401 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>YouTube Shorts Player</title>
+    <style>
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Arial, sans-serif;
+            background: #0f0f0f;
+            min-height: 100vh;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            padding: 20px;
+        }
+
+        .player-wrapper {
+            position: relative;
+            width: 315px;
+            height: 560px;
+            background: #000;
+            border-radius: 16px;
+            overflow: hidden;
+            box-shadow: 0 20px 60px rgba(0,0,0,0.8);
+        }
+
+        #player {
+            width: 100%;
+            height: 100%;
+        }
+
+        /* Thumbnail Preview (shown before playing) */
+        .thumbnail-preview {
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background-size: cover;
+            background-position: center;
+            z-index: 5;
+            cursor: pointer;
+            transition: opacity 0.3s;
+        }
+
+        .thumbnail-preview.hidden {
+            opacity: 0;
+            pointer-events: none;
+        }
+
+        /* Big Play Button */
+        .play-overlay {
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            background: rgba(0,0,0,0.3);
+            z-index: 6;
+        }
+
+        .big-play-btn {
+            width: 80px;
+            height: 80px;
+            background: rgba(255,0,0,0.9);
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            box-shadow: 0 4px 20px rgba(0,0,0,0.4);
+            transition: transform 0.2s;
+        }
+
+        .big-play-btn:hover {
+            transform: scale(1.1);
+        }
+
+        .big-play-btn::after {
+            content: '';
+            width: 0;
+            height: 0;
+            border-left: 28px solid white;
+            border-top: 16px solid transparent;
+            border-bottom: 16px solid transparent;
+            margin-left: 6px;
+        }
+
+        /* Loading */
+        .loading {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            color: white;
+            font-size: 14px;
+            z-index: 10;
+            display: none;
+        }
+
+        /* Error / Fallback */
+        .fallback-player {
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: #1a1a1a;
+            display: none;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            color: white;
+            text-align: center;
+            padding: 20px;
+            z-index: 20;
+        }
+
+        .fallback-player.show {
+            display: flex;
+        }
+
+        .fallback-thumbnail {
+            width: 100%;
+            height: 70%;
+            background-size: cover;
+            background-position: center;
+            position: relative;
+        }
+
+        .fallback-play-btn {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            width: 60px;
+            height: 60px;
+            background: rgba(255,0,0,0.9);
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            cursor: pointer;
+        }
+
+        .fallback-play-btn::after {
+            content: '';
+            width: 0;
+            height: 0;
+            border-left: 20px solid white;
+            border-top: 12px solid transparent;
+            border-bottom: 12px solid transparent;
+            margin-left: 4px;
+        }
+
+        .fallback-info {
+            padding: 20px;
+            font-size: 14px;
+        }
+
+        /* Controls */
+        .controls {
+            position: absolute;
+            bottom: 0;
+            left: 0;
+            right: 0;
+            padding: 15px;
+            background: linear-gradient(to top, rgba(0,0,0,0.8), transparent);
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            z-index: 15;
+            opacity: 0;
+            transition: opacity 0.3s;
+        }
+
+        .player-wrapper:hover .controls {
+            opacity: 1;
+        }
+
+        .ctrl-btn {
+            width: 36px;
+            height: 36px;
+            border-radius: 50%;
+            background: rgba(255,255,255,0.2);
+            border: none;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: white;
+            font-size: 14px;
+        }
+
+        .progress-bar {
+            flex: 1;
+            height: 4px;
+            background: rgba(255,255,255,0.3);
+            border-radius: 2px;
+            cursor: pointer;
+            position: relative;
+        }
+
+        .progress-fill {
+            height: 100%;
+            background: #ff0000;
+            border-radius: 2px;
+            width: 0%;
+        }
+    </style>
+</head>
+<body>
+
+    <div class="player-wrapper" id="playerWrapper">
+        <!-- YouTube Player -->
+        <div id="player"></div>
+        
+        <!-- Thumbnail Preview -->
+        <div class="thumbnail-preview" id="thumbnailPreview" onclick="initPlayer()">
+            <div class="play-overlay">
+                <div class="big-play-btn"></div>
+            </div>
+        </div>
+        
+        <!-- Loading -->
+        <div class="loading" id="loading">Loading...</div>
+        
+        <!-- Fallback Player (when embed fails) -->
+        <div class="fallback-player" id="fallbackPlayer">
+            <div class="fallback-thumbnail" id="fallbackThumbnail" onclick="openYouTube()">
+                <div class="fallback-play-btn"></div>
+            </div>
+            <div class="fallback-info">
+                <div style="font-weight: bold; margin-bottom: 5px;">Video unavailable for embedding</div>
+                <div style="font-size: 12px; opacity: 0.7; margin-bottom: 10px;">Click to watch on YouTube</div>
+                <button onclick="retryEmbed()" style="padding: 8px 16px; background: #333; color: white; border: none; border-radius: 20px; cursor: pointer; font-size: 12px;">Retry</button>
+            </div>
+        </div>
+        
+        <!-- Controls -->
+        <div class="controls" id="controls">
+            <button class="ctrl-btn" id="playPauseBtn" onclick="togglePlay()">❚❚</button>
+            <div class="progress-bar" onclick="seek(event)">
+                <div class="progress-fill" id="progressFill"></div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        const VIDEO_ID = 'iMgdzVQPR7E';
+        let player;
+        let isReady = false;
+        let isPlaying = false;
+        let updateInterval;
+        
+        // Load thumbnail first
+        document.getElementById('thumbnailPreview').style.backgroundImage = 
+            `url(https://img.youtube.com/vi/${VIDEO_ID}/maxresdefault.jpg)`;
+        document.getElementById('fallbackThumbnail').style.backgroundImage = 
+            `url(https://img.youtube.com/vi/${VIDEO_ID}/maxresdefault.jpg)`;
+
+        function initPlayer() {
+            document.getElementById('thumbnailPreview').classList.add('hidden');
+            document.getElementById('loading').style.display = 'block';
+            
+            // Load YouTube API
+            if (!window.YT) {
+                var tag = document.createElement('script');
+                tag.src = "https://www.youtube.com/iframe_api";
+                var firstScriptTag = document.getElementsByTagName('script')[0];
+                firstScriptTag.parentNode.insertBefore(tag, firstScriptTag);
+            } else {
+                createPlayer();
+            }
+        }
+
+        function onYouTubeIframeAPIReady() {
+            createPlayer();
+        }
+
+        function createPlayer() {
+            player = new YT.Player('player', {
+                height: '560',
+                width: '315',
+                videoId: VIDEO_ID,
+                playerVars: {
+                    'playsinline': 1,
+                    'rel': 0,
+                    'modestbranding': 1,
+                    'controls': 0,
+                    'disablekb': 1,
+                    'enablejsapi': 1,
+                    'origin': window.location.origin
+                },
+                events: {
+                    'onReady': onPlayerReady,
+                    'onStateChange': onPlayerStateChange,
+                    'onError': onPlayerError
+                }
+            });
+        }
+
+        function onPlayerReady(event) {
+            console.log('Player ready');
+            isReady = true;
+            document.getElementById('loading').style.display = 'none';
+            
+            // Try to play
+            player.playVideo();
+        }
+
+        function onPlayerStateChange(event) {
+            console.log('State:', event.data);
+            
+            if (event.data == YT.PlayerState.PLAYING) {
+                isPlaying = true;
+                document.getElementById('playPauseBtn').innerHTML = '❚❚';
+                startProgressUpdate();
+            } else if (event.data == YT.PlayerState.PAUSED) {
+                isPlaying = false;
+                document.getElementById('playPauseBtn').innerHTML = '▶';
+                stopProgressUpdate();
+            } else if (event.data == YT.PlayerState.ENDED) {
+                isPlaying = false;
+                document.getElementById('playPauseBtn').innerHTML = '▶';
+                stopProgressUpdate();
+            }
+        }
+
+        function onPlayerError(event) {
+            console.error('Error:', event.data);
+            showFallback();
+        }
+
+        function showFallback() {
+            document.getElementById('loading').style.display = 'none';
+            document.getElementById('fallbackPlayer').classList.add('show');
+            document.getElementById('controls').style.display = 'none';
+        }
+
+        function togglePlay() {
+            if (!isReady) return;
+            if (isPlaying) {
+                player.pauseVideo();
+            } else {
+                player.playVideo();
+            }
+        }
+
+        function startProgressUpdate() {
+            updateInterval = setInterval(() => {
+                try {
+                    const current = player.getCurrentTime();
+                    const duration = player.getDuration();
+                    const percent = (current / duration) * 100;
+                    document.getElementById('progressFill').style.width = percent + '%';
+                } catch(e) {}
+            }, 100);
+        }
+
+        function stopProgressUpdate() {
+            clearInterval(updateInterval);
+        }
+
+        function seek(event) {
+            if (!isReady) return;
+            const rect = event.currentTarget.getBoundingClientRect();
+            const percent = (event.clientX - rect.left) / rect.width;
+            const duration = player.getDuration();
+            player.seekTo(percent * duration, true);
+        }
+
+        function openYouTube() {
+            window.open(`https://www.youtube.com/shorts/${VIDEO_ID}`, '_blank');
+        }
+
+        function retryEmbed() {
+            location.reload();
+        }
+
+        // Timeout check - if player doesn't load in 10 seconds, show fallback
+        setTimeout(() => {
+            if (!isReady) {
+                console.log('Timeout - player failed to load');
+                showFallback();
+            }
+        }, 10000);
+    </script>
+
+</body>
+</html>
