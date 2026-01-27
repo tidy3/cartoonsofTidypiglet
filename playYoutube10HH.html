@@ -1,0 +1,1394 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>YouTube Shorts Player - @TidyPiglet Enhanced</title>
+    
+    <style>
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Arial, sans-serif;
+            background: #0f0f0f;
+            min-height: 100vh;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            padding: 20px;
+            color: white;
+        }
+
+        .main-container {
+            display: flex;
+            gap: 16px;
+            align-items: flex-start;
+            max-width: 1000px;
+            width: 100%;
+            justify-content: center;
+        }
+
+        /* Video Player - Clean, no overlays */
+        .player-wrapper {
+            position: relative;
+            width: 315px;
+            height: 560px;
+            background: #000;
+            border-radius: 16px;
+            overflow: hidden;
+            box-shadow: 0 20px 60px rgba(0,0,0,0.8);
+            flex-shrink: 0;
+        }
+
+        .video-container {
+            position: relative;
+            width: 100%;
+            height: 100%;
+        }
+
+        .youtube-iframe {
+            width: 100%;
+            height: 100%;
+            border: none;
+            display: block;
+        }
+
+        /* Loading Overlay - Only shown initially */
+        .loading-overlay {
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: rgba(0,0,0,0.9);
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            color: white;
+            z-index: 10;
+            transition: opacity 0.3s;
+        }
+
+        .loading-overlay.hidden {
+            opacity: 0;
+            pointer-events: none;
+        }
+
+        .loading-spinner {
+            width: 40px;
+            height: 40px;
+            border: 3px solid rgba(255,255,255,0.3);
+            border-top-color: #ff0000;
+            border-radius: 50%;
+            animation: spin 1s linear infinite;
+        }
+
+        .loading-text {
+            margin-top: 15px;
+            font-size: 14px;
+            color: rgba(255,255,255,0.8);
+        }
+
+        @keyframes spin {
+            to { transform: rotate(360deg); }
+        }
+
+        /* Controls - Bottom only, auto-hide */
+        .controls {
+            position: absolute;
+            bottom: 0;
+            left: 0;
+            right: 0;
+            padding: 20px;
+            background: linear-gradient(to top, rgba(0,0,0,0.8), transparent);
+            display: flex;
+            align-items: center;
+            gap: 15px;
+            z-index: 5;
+            opacity: 0;
+            transition: opacity 0.3s;
+        }
+
+        .player-wrapper:hover .controls {
+            opacity: 1;
+        }
+
+        .play-pause-btn {
+            width: 40px;
+            height: 40px;
+            border-radius: 50%;
+            background: rgba(255,255,255,0.2);
+            border: none;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: white;
+            font-size: 16px;
+            transition: transform 0.2s;
+            flex-shrink: 0;
+        }
+
+        .play-pause-btn:hover {
+            transform: scale(1.1);
+            background: rgba(255,255,255,0.3);
+        }
+
+        .progress-container {
+            flex: 1;
+            height: 4px;
+            background: rgba(255,255,255,0.2);
+            border-radius: 2px;
+            cursor: pointer;
+            position: relative;
+        }
+
+        .progress-bar {
+            height: 100%;
+            background: #ff0000;
+            border-radius: 2px;
+            width: 0%;
+            transition: width 0.1s;
+        }
+
+        .time-display {
+            color: white;
+            font-size: 12px;
+            min-width: 50px;
+            text-align: right;
+            font-variant-numeric: tabular-nums;
+        }
+
+        /* Right Side Control Panel */
+        .control-panel {
+            width: 120px;
+            height: 560px;
+            background: rgba(30, 30, 30, 0.6);
+            backdrop-filter: blur(20px);
+            border-radius: 16px;
+            padding: 16px 12px;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 12px;
+            border: 1px solid rgba(255,255,255,0.1);
+            position: relative;
+            overflow: visible;
+        }
+
+        /* Channel Header */
+        .channel-header {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            text-align: center;
+            margin-bottom: 8px;
+            width: 100%;
+        }
+
+        .channel-logo {
+            width: 48px;
+            height: 48px;
+            border-radius: 50%;
+            background: linear-gradient(135deg, #ff6b9d, #4ecdc4);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 24px;
+            margin-bottom: 8px;
+            border: 2px solid rgba(255,255,255,0.2);
+            overflow: hidden;
+        }
+
+        .channel-logo img {
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+        }
+
+        .channel-name {
+            font-size: 13px;
+            font-weight: 600;
+            color: white;
+            margin-bottom: 4px;
+            word-break: break-word;
+            line-height: 1.2;
+        }
+
+        .poem-title {
+            font-size: 11px;
+            color: rgba(255,255,255,0.7);
+            line-height: 1.3;
+            display: -webkit-box;
+            -webkit-line-clamp: 3;
+            -webkit-box-orient: vertical;
+            overflow: hidden;
+        }
+
+        /* Circular Buttons */
+        .action-buttons {
+            display: flex;
+            flex-direction: column;
+            gap: 16px;
+            align-items: center;
+            flex: 1;
+            width: 100%;
+            overflow-y: auto;
+            scrollbar-width: none;
+        }
+
+        .action-buttons::-webkit-scrollbar {
+            display: none;
+        }
+
+        .round-button {
+            width: 56px;
+            height: 56px;
+            border-radius: 50%;
+            background: rgba(255,255,255,0.1);
+            border: 2px solid rgba(255,255,255,0.2);
+            color: white;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            transition: all 0.3s ease;
+            position: relative;
+            flex-shrink: 0;
+        }
+
+        .round-button:hover {
+            background: rgba(255,255,255,0.2);
+            transform: scale(1.1);
+            border-color: rgba(255,255,255,0.4);
+        }
+
+        .round-button.active {
+            background: rgba(255,0,0,0.8);
+            border-color: #ff0000;
+        }
+
+        .round-button svg {
+            width: 24px;
+            height: 24px;
+            fill: currentColor;
+        }
+
+        .button-label {
+            font-size: 11px;
+            color: rgba(255,255,255,0.9);
+            margin-top: 4px;
+            font-weight: 500;
+        }
+
+        .button-count {
+            font-size: 10px;
+            color: rgba(255,255,255,0.6);
+            margin-top: 2px;
+            font-variant-numeric: tabular-nums;
+        }
+
+        .button-group {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            position: relative;
+        }
+
+        /* Slide-out Panels */
+        .slide-panel {
+            position: absolute;
+            left: calc(100% + 12px);
+            top: 50%;
+            transform: translateY(-50%) translateX(-20px);
+            background: rgba(30, 30, 30, 0.95);
+            backdrop-filter: blur(20px);
+            border: 1px solid rgba(255,255,255,0.1);
+            border-radius: 16px;
+            padding: 16px;
+            min-width: 220px;
+            opacity: 0;
+            visibility: hidden;
+            transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+            z-index: 100;
+            box-shadow: 0 10px 40px rgba(0,0,0,0.5);
+        }
+
+        .slide-panel.show {
+            opacity: 1;
+            visibility: visible;
+            transform: translateY(-50%) translateX(0);
+        }
+
+        .slide-panel h3 {
+            font-size: 14px;
+            margin-bottom: 12px;
+            color: white;
+            font-weight: 600;
+        }
+
+        /* Dislike Options Grid */
+        .dislike-grid {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 8px;
+            margin-bottom: 12px;
+        }
+
+        .dislike-option {
+            aspect-ratio: 1;
+            border-radius: 50%;
+            background: rgba(255,255,255,0.1);
+            border: 2px solid rgba(255,255,255,0.2);
+            color: white;
+            font-size: 20px;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            transition: all 0.2s;
+        }
+
+        .dislike-option:hover {
+            background: rgba(255,0,0,0.3);
+            border-color: rgba(255,0,0,0.5);
+            transform: scale(1.1);
+        }
+
+        .dislike-option-label {
+            font-size: 10px;
+            text-align: center;
+            margin-top: 4px;
+            color: rgba(255,255,255,0.7);
+        }
+
+        .dislike-form {
+            margin-top: 12px;
+            display: none;
+        }
+
+        .dislike-form.show {
+            display: block;
+        }
+
+        .dislike-form textarea {
+            width: 100%;
+            background: rgba(255,255,255,0.1);
+            border: 1px solid rgba(255,255,255,0.2);
+            border-radius: 8px;
+            padding: 8px;
+            color: white;
+            font-size: 12px;
+            resize: none;
+            height: 60px;
+            font-family: inherit;
+        }
+
+        .dislike-form textarea:focus {
+            outline: none;
+            border-color: rgba(255,255,255,0.4);
+        }
+
+        .submit-btn {
+            width: 100%;
+            padding: 8px;
+            margin-top: 8px;
+            background: rgba(255,255,255,0.2);
+            border: none;
+            border-radius: 6px;
+            color: white;
+            font-size: 12px;
+            cursor: pointer;
+            transition: background 0.2s;
+        }
+
+        .submit-btn:hover {
+            background: rgba(255,255,255,0.3);
+        }
+
+        .youtube-note {
+            font-size: 10px;
+            color: rgba(255,255,255,0.5);
+            margin-top: 8px;
+            font-style: italic;
+            text-align: center;
+        }
+
+        /* Comment Panel */
+        .comment-list {
+            max-height: 200px;
+            overflow-y: auto;
+            margin-bottom: 12px;
+            scrollbar-width: thin;
+            scrollbar-color: rgba(255,255,255,0.2) transparent;
+        }
+
+        .comment-list::-webkit-scrollbar {
+            width: 4px;
+        }
+
+        .comment-list::-webkit-scrollbar-thumb {
+            background: rgba(255,255,255,0.2);
+            border-radius: 2px;
+        }
+
+        .comment-item {
+            padding: 8px;
+            background: rgba(255,255,255,0.05);
+            border-radius: 8px;
+            margin-bottom: 8px;
+            font-size: 12px;
+        }
+
+        .comment-author {
+            font-weight: 600;
+            color: #ff6b9d;
+            margin-bottom: 2px;
+            font-size: 11px;
+        }
+
+        .comment-input-area {
+            display: flex;
+            gap: 8px;
+        }
+
+        .comment-input-area input {
+            flex: 1;
+            background: rgba(255,255,255,0.1);
+            border: 1px solid rgba(255,255,255,0.2);
+            border-radius: 20px;
+            padding: 8px 12px;
+            color: white;
+            font-size: 12px;
+            outline: none;
+        }
+
+        .comment-input-area input::placeholder {
+            color: rgba(255,255,255,0.4);
+        }
+
+        .send-btn {
+            width: 32px;
+            height: 32px;
+            border-radius: 50%;
+            background: #ff0000;
+            border: none;
+            color: white;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            flex-shrink: 0;
+        }
+
+        /* Share Carousel */
+        .share-carousel {
+            display: flex;
+            gap: 12px;
+            overflow-x: auto;
+            padding-bottom: 8px;
+            scrollbar-width: none;
+            margin-bottom: 12px;
+        }
+
+        .share-carousel::-webkit-scrollbar {
+            display: none;
+        }
+
+        .share-item {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 4px;
+            cursor: pointer;
+            min-width: 48px;
+        }
+
+        .share-icon {
+            width: 44px;
+            height: 44px;
+            border-radius: 50%;
+            background: rgba(255,255,255,0.1);
+            border: 2px solid rgba(255,255,255,0.2);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 20px;
+            transition: all 0.2s;
+        }
+
+        .share-item:hover .share-icon {
+            transform: scale(1.1);
+            background: rgba(255,255,255,0.2);
+        }
+
+        .share-label {
+            font-size: 10px;
+            color: rgba(255,255,255,0.8);
+        }
+
+        .copy-link-box {
+            display: flex;
+            gap: 8px;
+            margin-top: 8px;
+        }
+
+        .copy-link-box input {
+            flex: 1;
+            background: rgba(255,255,255,0.1);
+            border: 1px solid rgba(255,255,255,0.2);
+            border-radius: 6px;
+            padding: 6px;
+            color: white;
+            font-size: 11px;
+            outline: none;
+        }
+
+        .copy-btn {
+            padding: 6px 12px;
+            background: rgba(255,255,255,0.2);
+            border: none;
+            border-radius: 6px;
+            color: white;
+            font-size: 11px;
+            cursor: pointer;
+            white-space: nowrap;
+        }
+
+        .copy-btn:hover {
+            background: rgba(255,255,255,0.3);
+        }
+
+        /* Navigation Buttons */
+        .nav-section {
+            width: 100%;
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+            margin-top: auto;
+            padding-top: 12px;
+            border-top: 1px solid rgba(255,255,255,0.1);
+        }
+
+        .nav-button {
+            width: 100%;
+            padding: 10px;
+            background: rgba(70, 130, 180, 0.2);
+            border: 1.5px solid rgba(70, 130, 180, 0.5);
+            border-radius: 12px;
+            color: white;
+            font-size: 12px;
+            cursor: pointer;
+            transition: all 0.3s;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 6px;
+            font-weight: 500;
+        }
+
+        .nav-button:hover {
+            background: rgba(70, 130, 180, 0.4);
+            transform: translateY(-1px);
+        }
+
+        .nav-button.primary {
+            background: rgba(255,255,255,0.15);
+            border-color: rgba(255,255,255,0.3);
+        }
+
+        /* Fireworks Animation */
+        .fireworks-container {
+            position: absolute;
+            pointer-events: none;
+            z-index: 1000;
+        }
+
+        .firework {
+            position: absolute;
+            width: 4px;
+            height: 4px;
+            border-radius: 50%;
+            animation: firework-explode 1s ease-out forwards;
+        }
+
+        @keyframes firework-explode {
+            0% {
+                transform: translate(0, 0) scale(1);
+                opacity: 1;
+            }
+            100% {
+                transform: translate(var(--tx), var(--ty)) scale(0);
+                opacity: 0;
+            }
+        }
+
+        /* Thank You Message */
+        .thank-you-message {
+            position: absolute;
+            left: calc(100% + 8px);
+            top: 50%;
+            transform: translateY(-50%);
+            background: rgba(0,0,0,0.9);
+            color: #ff6b9d;
+            padding: 8px 16px;
+            border-radius: 20px;
+            font-size: 12px;
+            font-weight: 600;
+            white-space: nowrap;
+            opacity: 0;
+            pointer-events: none;
+            transition: opacity 0.3s;
+            z-index: 50;
+        }
+
+        .thank-you-message.show {
+            opacity: 1;
+            animation: fadeOut 2s forwards;
+        }
+
+        @keyframes fadeOut {
+            0%, 80% { opacity: 1; }
+            100% { opacity: 0; }
+        }
+
+        /* API Error Notice */
+        .api-notice {
+            position: fixed;
+            top: 20px;
+            left: 50%;
+            transform: translateX(-50%);
+            background: rgba(255, 193, 7, 0.9);
+            color: #000;
+            padding: 10px 20px;
+            border-radius: 20px;
+            font-size: 13px;
+            font-weight: 500;
+            z-index: 1000;
+            display: none;
+        }
+
+        .api-notice.show {
+            display: block;
+        }
+
+        /* Responsive */
+        @media (max-width: 480px) {
+            .main-container {
+                flex-direction: column;
+                align-items: center;
+            }
+
+            .control-panel {
+                width: 315px;
+                height: auto;
+                flex-direction: row;
+                flex-wrap: wrap;
+                padding: 12px;
+            }
+
+            .channel-header {
+                width: 100%;
+                flex-direction: row;
+                gap: 12px;
+                text-align: left;
+                margin-bottom: 12px;
+            }
+
+            .channel-logo {
+                margin-bottom: 0;
+            }
+
+            .action-buttons {
+                flex-direction: row;
+                justify-content: space-around;
+                width: 100%;
+                order: 2;
+            }
+
+            .nav-section {
+                flex-direction: row;
+                order: 3;
+                border-top: none;
+                padding-top: 0;
+                margin-top: 12px;
+            }
+
+            .slide-panel {
+                left: 50%;
+                top: auto;
+                bottom: calc(100% + 12px);
+                transform: translateX(-50%) translateY(20px);
+                min-width: 280px;
+            }
+
+            .slide-panel.show {
+                transform: translateX(-50%) translateY(0);
+            }
+
+            .thank-you-message {
+                left: 50%;
+                top: auto;
+                bottom: calc(100% + 8px);
+                transform: translateX(-50%);
+            }
+        }
+    </style>
+</head>
+<body>
+
+    <div class="api-notice" id="apiNotice">
+        Using demo data (API key not configured)
+    </div>
+
+    <div class="main-container">
+        <!-- Video Player - Clean, no overlays -->
+        <div class="player-wrapper" id="playerWrapper">
+            <div class="video-container">
+                <div class="loading-overlay" id="loadingOverlay">
+                    <div class="loading-spinner"></div>
+                    <div class="loading-text">Loading...</div>
+                </div>
+
+                <iframe 
+                    id="youtubeFrame"
+                    class="youtube-iframe"
+                    src="https://www.youtube.com/embed/KTc1D9hJq2M?enablejsapi=1&playsinline=1&rel=0&modestbranding=1&controls=0&disablekb=1&iv_load_policy=3&autoplay=0&loop=1&playlist=KTc1D9hJq2M"
+                    allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+                    allowfullscreen>
+                </iframe>
+
+                <div class="controls">
+                    <button class="play-pause-btn" id="playPauseBtn" onclick="togglePlay()">
+                        <svg id="playIcon" width="16" height="16" viewBox="0 0 24 24" fill="white">
+                            <path d="M8 5v14l11-7z"/>
+                        </svg>
+                        <svg id="pauseIcon" width="16" height="16" viewBox="0 0 24 24" fill="white" style="display: none;">
+                            <path d="M6 19h4V5H6v14zm8-14v14h4V5h-4z"/>
+                        </svg>
+                    </button>
+                    <div class="progress-container" onclick="seek(event)">
+                        <div class="progress-bar" id="progressBar"></div>
+                    </div>
+                    <div class="time-display" id="timeDisplay">0:00 / 0:00</div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Right Side Control Panel -->
+        <div class="control-panel" id="controlPanel">
+            <!-- Channel Info -->
+            <div class="channel-header">
+                <div class="channel-logo" id="channelLogo">
+                    🐷
+                </div>
+                <div style="flex: 1;">
+                    <div class="channel-name">@TidyPiglet</div>
+                    <div class="poem-title" id="videoTitle">Dishes compete for the use of tomatoes 🍅</div>
+                </div>
+            </div>
+
+            <!-- Action Buttons -->
+            <div class="action-buttons">
+                <!-- Like -->
+                <div class="button-group">
+                    <button class="round-button like-button" id="likeBtn" onclick="handleLike()">
+                        <svg viewBox="0 0 24 24">
+                            <path d="M1 21h4V9H1v12zm22-11c0-1.1-.9-2-2-2h-6.31l.95-4.57.03-.32c0-.41-.17-.79-.44-1.06L14.17 1 7.59 7.59C7.22 7.95 7 8.45 7 9v10c0 1.1.9 2 2 2h9c.83 0 1.54-.5 1.84-1.22l3.02-7.05c.09-.23.14-.47.14-.73v-2z"/>
+                        </svg>
+                    </button>
+                    <div class="button-label">Likes</div>
+                    <div class="button-count" id="likeCount">--</div>
+                    <div class="thank-you-message" id="thankYouMsg">Thank you! ❤️</div>
+                    <div class="fireworks-container" id="fireworksContainer"></div>
+                </div>
+
+                <!-- Dislike -->
+                <div class="button-group">
+                    <button class="round-button" id="dislikeBtn" onclick="toggleDislikePanel()">
+                        <svg viewBox="0 0 24 24">
+                            <path d="M15 3H6c-.83 0-1.54.5-1.84 1.22l-3.02 7.05c-.09.23-.14.47-.14.73v2c0 1.1.9 2 2 2h6.31l-.95 4.57-.03.32c0 .41.17.79.44 1.06L9.83 23l6.58-6.59c.37-.36.59-.86.59-1.41V5c0-1.1-.9-2-2-2zm4 0v12h4V3h-4z"/>
+                        </svg>
+                    </button>
+                    <div class="button-label">Dislike</div>
+                    
+                    <!-- Dislike Panel -->
+                    <div class="slide-panel" id="dislikePanel">
+                        <h3>What didn't you like?</h3>
+                        <div class="dislike-grid">
+                            <div>
+                                <div class="dislike-option" onclick="selectDislike('sound')" title="Sound">🔊</div>
+                                <div class="dislike-option-label">Sound</div>
+                            </div>
+                            <div>
+                                <div class="dislike-option" onclick="selectDislike('image')" title="Image">🖼️</div>
+                                <div class="dislike-option-label">Image</div>
+                            </div>
+                            <div>
+                                <div class="dislike-option" onclick="selectDislike('words')" title="Words">📝</div>
+                                <div class="dislike-option-label">Words</div>
+                            </div>
+                            <div>
+                                <div class="dislike-option" onclick="selectDislike('colors')" title="Colors">🎨</div>
+                                <div class="dislike-option-label">Colors</div>
+                            </div>
+                            <div>
+                                <div class="dislike-option" onclick="selectDislike('length')" title="Length">⏱️</div>
+                                <div class="dislike-option-label">Length</div>
+                            </div>
+                        </div>
+                        <div class="dislike-form" id="dislikeForm">
+                            <textarea id="dislikeText" placeholder="Tell us more..."></textarea>
+                            <button class="submit-btn" onclick="submitDislike()">Submit Feedback</button>
+                        </div>
+                        <div class="youtube-note" id="dislikeNote" style="display: none;">
+                            Note: Please submit detailed feedback on YouTube for channel improvement
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Comment -->
+                <div class="button-group">
+                    <button class="round-button" id="commentBtn" onclick="toggleCommentPanel()">
+                        <svg viewBox="0 0 24 24">
+                            <path d="M21.99 4c0-1.1-.89-2-1.99-2H4c-1.1 0-2 .9-2 2v12c0 1.1.9 2 2 2h14l4 4-.01-18zM18 14H6v-2h12v2zm0-3H6V9h12v2zm0-3H6V6h12v2z"/>
+                        </svg>
+                    </button>
+                    <div class="button-label">Comments</div>
+                    <div class="button-count" id="commentCount">--</div>
+                    
+                    <!-- Comment Panel -->
+                    <div class="slide-panel" id="commentPanel">
+                        <h3>Comments <span id="commentPanelCount" style="color: rgba(255,255,255,0.6); font-weight: normal;">(--)</span></h3>
+                        <div class="comment-list" id="commentList">
+                            <div style="text-align: center; color: rgba(255,255,255,0.5); padding: 20px; font-size: 12px;">
+                                Loading comments...
+                            </div>
+                        </div>
+                        <div class="comment-input-area">
+                            <input type="text" id="newComment" placeholder="Add a comment..." onkeypress="handleCommentKey(event)">
+                            <button class="send-btn" onclick="postComment()">
+                                <svg width="16" height="16" viewBox="0 0 24 24" fill="white">
+                                    <path d="M2.01 21L23 12 2.01 3 2 10l15 2-15 2z"/>
+                                </svg>
+                            </button>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Share -->
+                <div class="button-group">
+                    <button class="round-button" id="shareBtn" onclick="toggleSharePanel()">
+                        <svg viewBox="0 0 24 24">
+                            <path d="M18 16.08c-.76 0-1.44.3-1.96.77L8.91 12.7c.05-.23.09-.46.09-.7s-.04-.47-.09-.7l7.05-4.11c.54.5 1.25.81 2.04.81 1.66 0 3-1.34 3-3s-1.34-3-3-3-3 1.34-3 3c0 .24.04.47.09.7L8.04 9.81C7.5 9.31 6.79 9 6 9c-1.66 0-3 1.34-3 3s1.34 3 3 3c.79 0 1.5-.31 2.04-.81l7.12 4.16c-.05.21-.08.43-.08.65 0 1.61 1.31 2.92 2.92 2.92 1.61 0 2.92-1.31 2.92-2.92s-1.31-2.92-2.92-2.92z"/>
+                        </svg>
+                    </button>
+                    <div class="button-label">Share</div>
+                    <div class="button-count" id="shareCount">89</div>
+                    
+                    <!-- Share Panel -->
+                    <div class="slide-panel" id="sharePanel">
+                        <h3>Share</h3>
+                        <div class="share-carousel">
+                            <div class="share-item" onclick="shareTo('copy')">
+                                <div class="share-icon">📋</div>
+                                <div class="share-label">Copy</div>
+                            </div>
+                            <div class="share-item" onclick="shareTo('email')">
+                                <div class="share-icon">✉️</div>
+                                <div class="share-label">Email</div>
+                            </div>
+                            <div class="share-item" onclick="shareTo('facebook')">
+                                <div class="share-icon">📘</div>
+                                <div class="share-label">Facebook</div>
+                            </div>
+                            <div class="share-item" onclick="shareTo('whatsapp')">
+                                <div class="share-icon">💬</div>
+                                <div class="share-label">WhatsApp</div>
+                            </div>
+                            <div class="share-item" onclick="shareTo('x')">
+                                <div class="share-icon">𝕏</div>
+                                <div class="share-label">X</div>
+                            </div>
+                        </div>
+                        <div class="copy-link-box">
+                            <input type="text" id="shareLink" readonly value="https://youtube.com/shorts/KTc1D9hJq2M">
+                            <button class="copy-btn" onclick="copyLink()">Copy</button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Navigation -->
+            <div class="nav-section">
+                <button class="nav-button primary" onclick="continueWatching()">
+                    <span>▶</span> Continue
+                </button>
+                <div style="display: flex; gap: 8px; width: 100%;">
+                    <button class="nav-button" onclick="loadVideo('A6_50UjP10U')" style="flex: 1;">
+                        ← Prev
+                    </button>
+                    <button class="nav-button" onclick="loadVideo('QRpPorR3XDE')" style="flex: 1;">
+                        Next →
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // Configuration - REPLACE WITH YOUR API KEY
+        const API_KEY = 'YOUR_YOUTUBE_API_KEY_HERE'; // Get from Google Cloud Console
+        const CHANNEL_ID = 'UC_x5XG1OV2P6uZZ5FSM9Ttw'; // @TidyPiglet channel ID (example)
+        const CURRENT_VIDEO = {
+            id: 'KTc1D9hJq2M',
+            title: 'Dishes compete for the use of tomatoes 🍅 #shortstory'
+        };
+
+        // State
+        let player;
+        let isReady = false;
+        let isPlaying = false;
+        let updateInterval;
+        let currentVideoId = CURRENT_VIDEO.id;
+        let realStats = {
+            likes: 0,
+            comments: 0,
+            views: 0
+        };
+
+        // Initialize YouTube IFrame API
+        var tag = document.createElement('script');
+        tag.src = "https://www.youtube.com/iframe_api";
+        var firstScriptTag = document.getElementsByTagName('script')[0];
+        firstScriptTag.parentNode.insertBefore(tag, firstScriptTag);
+
+        function onYouTubeIframeAPIReady() {
+            createPlayer(currentVideoId);
+            if (API_KEY === 'YOUR_YOUTUBE_API_KEY_HERE') {
+                document.getElementById('apiNotice').classList.add('show');
+                loadDemoData();
+            } else {
+                fetchRealData();
+            }
+        }
+
+        function createPlayer(videoId) {
+            player = new YT.Player('youtubeFrame', {
+                videoId: videoId,
+                playerVars: {
+                    enablejsapi: 1,
+                    playsinline: 1,
+                    rel: 0,
+                    modestbranding: 1,
+                    controls: 0,
+                    disablekb: 1,
+                    iv_load_policy: 3,
+                    autoplay: 0,
+                    loop: 1,
+                    playlist: videoId
+                },
+                events: {
+                    'onReady': onPlayerReady,
+                    'onStateChange': onPlayerStateChange,
+                    'onError': onPlayerError
+                }
+            });
+        }
+
+        function onPlayerReady(event) {
+            isReady = true;
+            document.getElementById('loadingOverlay').classList.add('hidden');
+            updateTimeDisplay();
+            
+            // Try to play (may be blocked by browser)
+            event.target.playVideo();
+        }
+
+        function onPlayerStateChange(event) {
+            if (event.data == YT.PlayerState.PLAYING) {
+                isPlaying = true;
+                document.getElementById('playIcon').style.display = 'none';
+                document.getElementById('pauseIcon').style.display = 'block';
+                startProgressUpdate();
+            } else if (event.data == YT.PlayerState.PAUSED) {
+                isPlaying = false;
+                document.getElementById('playIcon').style.display = 'block';
+                document.getElementById('pauseIcon').style.display = 'none';
+                stopProgressUpdate();
+            } else if (event.data == YT.PlayerState.ENDED) {
+                player.playVideo(); // Loop
+            }
+        }
+
+        function onPlayerError(event) {
+            console.error('Player error:', event.data);
+        }
+
+        // Fetch real data from YouTube API
+        async function fetchRealData() {
+            try {
+                // Fetch video statistics
+                const statsResponse = await fetch(
+                    `https://www.googleapis.com/youtube/v3/videos?part=statistics,snippet&id=${currentVideoId}&key=${API_KEY}`
+                );
+                const statsData = await statsResponse.json();
+                
+                if (statsData.items && statsData.items.length > 0) {
+                    const video = statsData.items[0];
+                    realStats.likes = parseInt(video.statistics.likeCount) || 0;
+                    realStats.comments = parseInt(video.statistics.commentCount) || 0;
+                    realStats.views = parseInt(video.statistics.viewCount) || 0;
+                    
+                    // Update channel logo if available
+                    const channelId = video.snippet.channelId;
+                    fetchChannelData(channelId);
+                    
+                    // Update title
+                    document.getElementById('videoTitle').textContent = video.snippet.title;
+                    
+                    updateStatsDisplay();
+                    
+                    // Fetch top comments
+                    fetchComments();
+                }
+            } catch (error) {
+                console.error('API Error:', error);
+                loadDemoData();
+            }
+        }
+
+        async function fetchChannelData(channelId) {
+            try {
+                const response = await fetch(
+                    `https://www.googleapis.com/youtube/v3/channels?part=snippet&id=${channelId}&key=${API_KEY}`
+                );
+                const data = await response.json();
+                if (data.items && data.items.length > 0) {
+                    const thumbnail = data.items[0].snippet.thumbnails.default.url;
+                    document.getElementById('channelLogo').innerHTML = 
+                        `<img src="${thumbnail}" alt="Channel Logo" style="width: 100%; height: 100%; object-fit: cover;">`;
+                }
+            } catch (e) {
+                console.error('Channel fetch error:', e);
+            }
+        }
+
+        async function fetchComments() {
+            try {
+                const response = await fetch(
+                    `https://www.googleapis.com/youtube/v3/commentThreads?part=snippet&videoId=${currentVideoId}&maxResults=5&key=${API_KEY}`
+                );
+                const data = await response.json();
+                
+                const commentList = document.getElementById('commentList');
+                commentList.innerHTML = '';
+                
+                if (data.items && data.items.length > 0) {
+                    data.items.forEach(item => {
+                        const comment = item.snippet.topLevelComment.snippet;
+                        addCommentToList(comment.authorDisplayName, comment.textDisplay);
+                    });
+                } else {
+                    commentList.innerHTML = '<div style="text-align: center; color: rgba(255,255,255,0.5); padding: 20px;">No comments yet</div>';
+                }
+            } catch (error) {
+                console.error('Comments error:', error);
+                document.getElementById('commentList').innerHTML = 
+                    '<div style="text-align: center; color: rgba(255,255,255,0.5); padding: 20px;">Comments loading...</div>';
+            }
+        }
+
+        function loadDemoData() {
+            realStats = {
+                likes: 2347,
+                comments: 156,
+                views: 45231
+            };
+            updateStatsDisplay();
+            
+            // Demo comments
+            document.getElementById('commentList').innerHTML = '';
+            addCommentToList('User123', 'Love this! 🍅');
+            addCommentToList('CartoonFan', 'So cute! ❤️');
+            addCommentToList('ArtLover', 'Amazing animation');
+        }
+
+        function updateStatsDisplay() {
+            document.getElementById('likeCount').textContent = formatNumber(realStats.likes);
+            document.getElementById('commentCount').textContent = formatNumber(realStats.comments);
+            document.getElementById('commentPanelCount').textContent = `(${formatNumber(realStats.comments)})`;
+        }
+
+        function formatNumber(num) {
+            if (num >= 1000000) return (num/1000000).toFixed(1) + 'M';
+            if (num >= 1000) return (num/1000).toFixed(1) + 'k';
+            return num.toString();
+        }
+
+        // Like functionality with fireworks
+        function handleLike() {
+            const btn = document.getElementById('likeBtn');
+            const isActive = btn.classList.contains('active');
+            
+            if (!isActive) {
+                btn.classList.add('active');
+                realStats.likes++;
+                updateStatsDisplay();
+                
+                // Fireworks animation
+                createFireworks(btn);
+                
+                // Thank you message
+                const msg = document.getElementById('thankYouMsg');
+                msg.classList.add('show');
+                setTimeout(() => msg.classList.remove('show'), 2000);
+                
+                // Note: In production, send to YouTube API here
+            } else {
+                btn.classList.remove('active');
+                realStats.likes--;
+                updateStatsDisplay();
+            }
+        }
+
+        function createFireworks(element) {
+            const container = document.getElementById('fireworksContainer');
+            const rect = element.getBoundingClientRect();
+            const colors = ['#ff6b9d', '#4ecdc4', '#ffe66d', '#ff6b6b', '#4ecdc4'];
+            
+            for (let i = 0; i < 12; i++) {
+                const spark = document.createElement('div');
+                spark.className = 'firework';
+                spark.style.background = colors[Math.floor(Math.random() * colors.length)];
+                spark.style.left = '28px';
+                spark.style.top = '28px';
+                
+                const angle = (i / 12) * Math.PI * 2;
+                const velocity = 50 + Math.random() * 30;
+                const tx = Math.cos(angle) * velocity;
+                const ty = Math.sin(angle) * velocity;
+                
+                spark.style.setProperty('--tx', tx + 'px');
+                spark.style.setProperty('--ty', ty + 'px');
+                
+                container.appendChild(spark);
+                setTimeout(() => spark.remove(), 1000);
+            }
+        }
+
+        // Dislike panel
+        function toggleDislikePanel() {
+            const panel = document.getElementById('dislikePanel');
+            const isOpen = panel.classList.contains('show');
+            
+            closeAllPanels();
+            
+            if (!isOpen) {
+                panel.classList.add('show');
+                document.getElementById('dislikeForm').classList.remove('show');
+                document.getElementById('dislikeNote').style.display = 'none';
+            }
+        }
+
+        function selectDislike(type) {
+            const reasons = {
+                'sound': "I didn't like the sound",
+                'image': "I didn't like the image",
+                'words': "I didn't like the lyrics/words",
+                'colors': "I didn't like the colors",
+                'length': "I didn't like the length"
+            };
+            
+            document.getElementById('dislikeText').value = reasons[type] || '';
+            document.getElementById('dislikeForm').classList.add('show');
+            document.getElementById('dislikeNote').style.display = 'block';
+            
+            // Mark button as active
+            document.getElementById('dislikeBtn').classList.add('active');
+        }
+
+        function submitDislike() {
+            const text = document.getElementById('dislikeText').value;
+            if (text) {
+                alert('Thank you for your feedback! For detailed reviews, please visit YouTube.');
+                document.getElementById('dislikePanel').classList.remove('show');
+                document.getElementById('dislikeForm').classList.remove('show');
+            }
+        }
+
+        // Comment panel
+        function toggleCommentPanel() {
+            const panel = document.getElementById('commentPanel');
+            const isOpen = panel.classList.contains('show');
+            closeAllPanels();
+            if (!isOpen) panel.classList.add('show');
+        }
+
+        function addCommentToList(author, text) {
+            const list = document.getElementById('commentList');
+            const item = document.createElement('div');
+            item.className = 'comment-item';
+            item.innerHTML = `
+                <div class="comment-author">${author}</div>
+                <div>${text}</div>
+            `;
+            list.appendChild(item);
+            list.scrollTop = list.scrollHeight;
+        }
+
+        function handleCommentKey(e) {
+            if (e.key === 'Enter') postComment();
+        }
+
+        function postComment() {
+            const input = document.getElementById('newComment');
+            const text = input.value.trim();
+            if (text) {
+                addCommentToList('You', text);
+                input.value = '';
+                realStats.comments++;
+                updateStatsDisplay();
+                
+                // Note: In production, send to YouTube API
+            }
+        }
+
+        // Share panel
+        function toggleSharePanel() {
+            const panel = document.getElementById('sharePanel');
+            const isOpen = panel.classList.contains('show');
+            closeAllPanels();
+            if (!isOpen) {
+                panel.classList.add('show');
+                document.getElementById('shareLink').value = `https://youtube.com/shorts/${currentVideoId}`;
+            }
+        }
+
+        function shareTo(platform) {
+            const url = `https://youtube.com/shorts/${currentVideoId}`;
+            const text = 'Check out this @TidyPiglet cartoon!';
+            
+            switch(platform) {
+                case 'copy':
+                    copyLink();
+                    break;
+                case 'email':
+                    window.location.href = `mailto:?subject=${encodeURIComponent(text)}&body=${encodeURIComponent(url)}`;
+                    break;
+                case 'facebook':
+                    window.open(`https://www.facebook.com/sharer/sharer.php?u=${encodeURIComponent(url)}`);
+                    break;
+                case 'whatsapp':
+                    window.open(`https://wa.me/?text=${encodeURIComponent(text + ' ' + url)}`);
+                    break;
+                case 'x':
+                    window.open(`https://twitter.com/intent/tweet?text=${encodeURIComponent(text)}&url=${encodeURIComponent(url)}`);
+                    break;
+            }
+            
+            // Increment share count (demo)
+            const count = document.getElementById('shareCount');
+            count.textContent = parseInt(count.textContent) + 1;
+        }
+
+        function copyLink() {
+            const input = document.getElementById('shareLink');
+            input.select();
+            document.execCommand('copy');
+            alert('Link copied to clipboard!');
+        }
+
+        // Navigation
+        function closeAllPanels() {
+            document.querySelectorAll('.slide-panel').forEach(p => p.classList.remove('show'));
+        }
+
+        function continueWatching() {
+            if (player && isReady) {
+                player.playVideo();
+            }
+        }
+
+        function loadVideo(videoId) {
+            if (player && isReady) {
+                currentVideoId = videoId;
+                player.loadVideoById(videoId);
+                document.getElementById('shareLink').value = `https://youtube.com/shorts/${videoId}`;
+                
+                // Refresh data for new video
+                if (API_KEY !== 'YOUR_YOUTUBE_API_KEY_HERE') {
+                    fetchRealData();
+                }
+            }
+        }
+
+        // Player controls
+        function togglePlay() {
+            if (!isReady) return;
+            if (isPlaying) {
+                player.pauseVideo();
+            } else {
+                player.playVideo();
+            }
+        }
+
+        function startProgressUpdate() {
+            updateInterval = setInterval(() => {
+                if (!isReady) return;
+                const current = player.getCurrentTime();
+                const duration = player.getDuration();
+                const percent = (current / duration) * 100;
+                document.getElementById('progressBar').style.width = percent + '%';
+                updateTimeDisplay(current, duration);
+            }, 100);
+        }
+
+        function stopProgressUpdate() {
+            clearInterval(updateInterval);
+        }
+
+        function updateTimeDisplay(current = 0, duration = 0) {
+            if (!duration) duration = player?.getDuration() || 0;
+            document.getElementById('timeDisplay').textContent = 
+                `${formatTime(current)} / ${formatTime(duration)}`;
+        }
+
+        function formatTime(seconds) {
+            if (!seconds || isNaN(seconds)) return '0:00';
+            const mins = Math.floor(seconds / 60);
+            const secs = Math.floor(seconds % 60);
+            return `${mins}:${secs.toString().padStart(2, '0')}`;
+        }
+
+        function seek(event) {
+            if (!isReady) return;
+            const rect = event.currentTarget.getBoundingClientRect();
+            const percent = (event.clientX - rect.left) / rect.width;
+            const duration = player.getDuration();
+            player.seekTo(percent * duration, true);
+        }
+
+        // Close panels when clicking outside
+        document.addEventListener('click', (e) => {
+            if (!e.target.closest('.button-group') && !e.target.closest('.slide-panel')) {
+                closeAllPanels();
+            }
+        });
+
+        // Keyboard controls
+        document.addEventListener('keydown', (e) => {
+            if (e.code === 'Space') {
+                e.preventDefault();
+                togglePlay();
+            }
+        });
+    </script>
+</body>
+</html>
