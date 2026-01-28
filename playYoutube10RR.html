@@ -1,0 +1,1515 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>YouTube Shorts Player - @TidyPiglet Enhanced</title>
+    
+    <style>
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Arial, sans-serif;
+            background: #0f0f0f;
+            min-height: 100vh;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            padding: 20px;
+            color: white;
+        }
+
+        .demo-notice {
+            margin-top: 12px;
+            font-size: 12px;
+            color: rgba(255, 255, 255, 0.5);
+            text-align: center;
+            font-style: italic;
+        }
+
+        .video-header {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            margin-bottom: 16px;
+            padding: 12px 16px;
+            background: rgba(30, 30, 30, 0.6);
+            backdrop-filter: blur(10px);
+            border-radius: 16px;
+            border: 1px solid rgba(255,255,255,0.1);
+            width: 100%;
+            max-width: 600px;
+            justify-content: center;
+        }
+
+        .header-logo {
+            width: 48px;
+            height: 48px;
+            border-radius: 50%;
+            background: linear-gradient(135deg, #ff6b9d, #4ecdc4);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 24px;
+            border: 2px solid rgba(255,255,255,0.2);
+            overflow: hidden;
+            flex-shrink: 0;
+        }
+
+        .header-info {
+            text-align: left;
+        }
+
+        .header-channel {
+            font-size: 16px;
+            font-weight: 700;
+            color: white;
+            margin-bottom: 2px;
+        }
+
+        .header-title {
+            font-size: 14px;
+            color: rgba(255,255,255,0.8);
+            line-height: 1.3;
+        }
+
+        .main-container {
+            display: flex;
+            gap: 24px;
+            align-items: flex-start;
+            justify-content: center;
+            width: 100%;
+            max-width: 900px;
+        }
+
+        .player-wrapper {
+            position: relative;
+            width: 315px;
+            height: 560px;
+            background: #000;
+            border-radius: 16px;
+            overflow: hidden;
+            box-shadow: 0 20px 60px rgba(0,0,0,0.8);
+            flex-shrink: 0;
+        }
+
+        .video-container {
+            position: relative;
+            width: 100%;
+            height: 100%;
+        }
+
+        .youtube-iframe {
+            width: 100%;
+            height: 100%;
+            border: none;
+            display: block;
+        }
+
+        .loading-overlay {
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: rgba(0,0,0,0.9);
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            color: white;
+            z-index: 10;
+            transition: opacity 0.3s;
+        }
+
+        .loading-overlay.hidden {
+            opacity: 0;
+            pointer-events: none;
+        }
+
+        .loading-spinner {
+            width: 40px;
+            height: 40px;
+            border: 3px solid rgba(255,255,255,0.3);
+            border-top-color: #ff0000;
+            border-radius: 50%;
+            animation: spin 1s linear infinite;
+        }
+
+        @keyframes spin {
+            to { transform: rotate(360deg); }
+        }
+
+        .controls {
+            position: absolute;
+            bottom: 0;
+            left: 0;
+            right: 0;
+            padding: 20px;
+            background: linear-gradient(to top, rgba(0,0,0,0.8), transparent);
+            display: flex;
+            align-items: center;
+            gap: 15px;
+            z-index: 5;
+            opacity: 0;
+            transition: opacity 0.3s;
+        }
+
+        .player-wrapper:hover .controls {
+            opacity: 1;
+        }
+
+        .play-pause-btn {
+            width: 40px;
+            height: 40px;
+            border-radius: 50%;
+            background: rgba(255,255,255,0.2);
+            border: none;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: white;
+            transition: transform 0.2s;
+            flex-shrink: 0;
+        }
+
+        .play-pause-btn:hover {
+            transform: scale(1.1);
+            background: rgba(255,255,255,0.3);
+        }
+
+        .progress-container {
+            flex: 1;
+            height: 4px;
+            background: rgba(255,255,255,0.2);
+            border-radius: 2px;
+            cursor: pointer;
+            position: relative;
+        }
+
+        .progress-bar {
+            height: 100%;
+            background: #ff0000;
+            border-radius: 2px;
+            width: 0%;
+            transition: width 0.1s;
+        }
+
+        .time-display {
+            color: white;
+            font-size: 12px;
+            min-width: 50px;
+            text-align: right;
+            font-variant-numeric: tabular-nums;
+        }
+
+        .control-panel {
+            width: 280px;
+            height: 560px;
+            background: rgba(30, 30, 30, 0.6);
+            backdrop-filter: blur(20px);
+            border-radius: 16px;
+            padding: 24px 16px;
+            display: flex;
+            flex-direction: column;
+            gap: 20px;
+            border: 1px solid rgba(255,255,255,0.1);
+            position: relative;
+            overflow-y: auto;
+            overflow-x: hidden;
+            scrollbar-width: thin;
+            scrollbar-color: rgba(255,255,255,0.2) transparent;
+        }
+
+        .control-panel::-webkit-scrollbar {
+            width: 6px;
+        }
+
+        .control-panel::-webkit-scrollbar-thumb {
+            background: rgba(255,255,255,0.2);
+            border-radius: 3px;
+        }
+
+        .action-buttons {
+            display: flex;
+            flex-direction: column;
+            gap: 20px;
+            align-items: center;
+            width: 100%;
+            padding-top: 10px;
+            flex-shrink: 0;
+        }
+
+        .button-group {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            position: relative;
+            width: 100%;
+            flex-shrink: 0;
+        }
+
+        .round-button {
+            width: 64px;
+            height: 64px;
+            border-radius: 50%;
+            background: rgba(255,255,255,0.1);
+            border: 2px solid rgba(255,255,255,0.2);
+            color: white;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            transition: all 0.3s ease;
+            position: relative;
+            flex-shrink: 0;
+        }
+
+        .round-button:hover {
+            background: rgba(255,255,255,0.2);
+            transform: scale(1.1);
+            border-color: rgba(255,255,255,0.4);
+        }
+
+        .round-button.active {
+            background: rgba(255,0,0,0.8);
+            border-color: #ff0000;
+        }
+
+        .round-button svg {
+            width: 28px;
+            height: 28px;
+            fill: currentColor;
+        }
+
+        .button-label {
+            font-size: 12px;
+            color: rgba(255,255,255,0.9);
+            margin-top: 6px;
+            font-weight: 600;
+        }
+
+        .button-count {
+            font-size: 11px;
+            color: rgba(255,255,255,0.6);
+            margin-top: 2px;
+            font-variant-numeric: tabular-nums;
+        }
+
+        .slide-panel {
+            position: fixed;
+            background: rgba(20, 20, 20, 0.98);
+            backdrop-filter: blur(20px);
+            border: 1px solid rgba(255,255,255,0.15);
+            border-radius: 16px;
+            padding: 20px;
+            width: 300px;
+            opacity: 0;
+            visibility: hidden;
+            transition: all 0.3s ease;
+            z-index: 1000;
+            box-shadow: 0 20px 50px rgba(0,0,0,0.8);
+            max-height: 80vh;
+            overflow-y: auto;
+        }
+
+        .slide-panel.show {
+            opacity: 1;
+            visibility: visible;
+        }
+
+        .slide-panel h3 {
+            font-size: 16px;
+            margin-bottom: 16px;
+            color: white;
+            font-weight: 700;
+            border-bottom: 1px solid rgba(255,255,255,0.1);
+            padding-bottom: 8px;
+        }
+
+        .dislike-grid {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 12px;
+            margin-bottom: 16px;
+        }
+
+        .dislike-item {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 4px;
+        }
+
+        .dislike-option {
+            width: 56px;
+            height: 56px;
+            border-radius: 50%;
+            background: rgba(255,255,255,0.1);
+            border: 2px solid rgba(255,255,255,0.2);
+            color: white;
+            font-size: 24px;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            transition: all 0.2s;
+            position: relative;
+        }
+
+        .dislike-option:hover {
+            transform: scale(1.1);
+        }
+
+        .dislike-option.selected {
+            background: rgba(255,0,0,0.6);
+            border-color: #ff0000;
+        }
+
+        .dislike-option.selected::after {
+            content: '✓';
+            position: absolute;
+            top: -4px;
+            right: -4px;
+            background: #ff0000;
+            width: 20px;
+            height: 20px;
+            border-radius: 50%;
+            font-size: 12px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            border: 2px solid rgba(20,20,20,0.98);
+        }
+
+        .dislike-option-label {
+            font-size: 10px;
+            color: rgba(255,255,255,0.7);
+            text-align: center;
+        }
+
+        .feedback-summary {
+            background: rgba(255,255,255,0.05);
+            border-radius: 8px;
+            padding: 12px;
+            margin-bottom: 12px;
+            min-height: 60px;
+            font-size: 13px;
+            line-height: 1.4;
+            color: rgba(255,255,255,0.8);
+            border-left: 3px solid #ff0000;
+        }
+
+        .feedback-summary-item {
+            margin-bottom: 4px;
+            padding-left: 16px;
+            position: relative;
+        }
+
+        .feedback-summary-item::before {
+            content: '•';
+            position: absolute;
+            left: 4px;
+            color: #ff0000;
+        }
+
+        .submit-btn {
+            width: 100%;
+            padding: 12px;
+            background: rgba(255,0,0,0.8);
+            border: none;
+            border-radius: 8px;
+            color: white;
+            font-size: 14px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: background 0.2s;
+            margin-top: 8px;
+        }
+
+        .submit-btn:hover {
+            background: rgba(255,0,0,1);
+        }
+
+        .comment-stats {
+            font-size: 11px;
+            color: rgba(255,255,255,0.5);
+            margin-bottom: 12px;
+            font-weight: normal;
+        }
+
+        .comment-list {
+            max-height: 200px;
+            overflow-y: auto;
+            margin-bottom: 12px;
+            scrollbar-width: thin;
+            scrollbar-color: rgba(255,255,255,0.2) transparent;
+        }
+
+        .comment-list::-webkit-scrollbar {
+            width: 4px;
+        }
+
+        .comment-list::-webkit-scrollbar-thumb {
+            background: rgba(255,255,255,0.2);
+            border-radius: 2px;
+        }
+
+        .comment-item {
+            padding: 12px;
+            background: rgba(255,255,255,0.05);
+            border-radius: 10px;
+            margin-bottom: 10px;
+            font-size: 13px;
+            border-left: 3px solid #4ecdc4;
+            position: relative;
+        }
+
+        .comment-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 6px;
+        }
+
+        .comment-author {
+            font-weight: 700;
+            color: #4ecdc4;
+            font-size: 12px;
+        }
+
+        .comment-like-btn {
+            background: rgba(255,255,255,0.1);
+            border: none;
+            border-radius: 12px;
+            padding: 4px 10px;
+            color: white;
+            font-size: 11px;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            gap: 4px;
+            transition: all 0.2s;
+        }
+
+        .comment-like-btn:hover {
+            background: rgba(255,0,0,0.3);
+        }
+
+        .comment-like-btn.liked {
+            background: rgba(255,0,0,0.6);
+        }
+
+        .add-comment-btn {
+            width: 100%;
+            padding: 10px;
+            background: rgba(255,255,255,0.1);
+            border: 2px dashed rgba(255,255,255,0.3);
+            border-radius: 10px;
+            color: white;
+            font-size: 13px;
+            cursor: pointer;
+            margin-bottom: 12px;
+            transition: all 0.2s;
+        }
+
+        .add-comment-btn:hover {
+            background: rgba(255,255,255,0.15);
+            border-color: rgba(255,255,255,0.5);
+        }
+
+        .comment-input-area {
+            display: none;
+            flex-direction: column;
+            gap: 8px;
+            margin-bottom: 12px;
+            padding: 12px;
+            background: rgba(255,255,255,0.05);
+            border-radius: 10px;
+        }
+
+        .comment-input-area.show {
+            display: flex;
+        }
+
+        .comment-input-area input {
+            background: rgba(255,255,255,0.1);
+            border: 1px solid rgba(255,255,255,0.2);
+            border-radius: 8px;
+            padding: 10px;
+            color: white;
+            font-size: 13px;
+            outline: none;
+        }
+
+        .comment-input-area input::placeholder {
+            color: rgba(255,255,255,0.4);
+        }
+
+        .comment-actions {
+            display: flex;
+            gap: 8px;
+        }
+
+        .comment-submit-btn {
+            flex: 1;
+            padding: 8px;
+            background: #ff0000;
+            border: none;
+            border-radius: 6px;
+            color: white;
+            font-size: 12px;
+            cursor: pointer;
+        }
+
+        .comment-cancel-btn {
+            flex: 1;
+            padding: 8px;
+            background: rgba(255,255,255,0.1);
+            border: 1px solid rgba(255,255,255,0.2);
+            border-radius: 6px;
+            color: white;
+            font-size: 12px;
+            cursor: pointer;
+        }
+
+        .validation-error {
+            color: #ff6b6b;
+            font-size: 11px;
+            margin-top: 4px;
+            display: none;
+        }
+
+        .share-carousel-container {
+            position: relative;
+            margin-bottom: 16px;
+        }
+
+        .share-carousel {
+            display: flex;
+            gap: 16px;
+            overflow-x: auto;
+            padding: 4px;
+            scroll-behavior: smooth;
+            scrollbar-width: none;
+        }
+
+        .share-carousel::-webkit-scrollbar {
+            display: none;
+        }
+
+        .share-item {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 6px;
+            cursor: pointer;
+            min-width: 64px;
+            flex-shrink: 0;
+            transition: transform 0.2s;
+        }
+
+        .share-item:hover {
+            transform: translateY(-4px);
+        }
+
+        .share-icon {
+            width: 56px;
+            height: 56px;
+            border-radius: 50%;
+            background: rgba(255,255,255,0.1);
+            border: 2px solid rgba(255,255,255,0.2);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 24px;
+            transition: all 0.2s;
+        }
+
+        .share-item:hover .share-icon {
+            background: rgba(255,255,255,0.2);
+            border-color: rgba(255,255,255,0.4);
+        }
+
+        .share-label {
+            font-size: 11px;
+            color: rgba(255,255,255,0.8);
+            font-weight: 500;
+        }
+
+        .carousel-controls {
+            display: flex;
+            justify-content: center;
+            gap: 16px;
+            margin-top: 12px;
+        }
+
+        .carousel-arrow {
+            width: 36px;
+            height: 36px;
+            border-radius: 50%;
+            background: rgba(255,255,255,0.1);
+            border: 1px solid rgba(255,255,255,0.2);
+            color: white;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 18px;
+            transition: all 0.2s;
+        }
+
+        .carousel-arrow:hover {
+            background: rgba(255,255,255,0.2);
+            transform: scale(1.1);
+        }
+
+        .pause-btn {
+            font-size: 11px;
+            padding: 6px 12px;
+            background: rgba(255,255,255,0.1);
+            border: 1px solid rgba(255,255,255,0.2);
+            border-radius: 12px;
+            color: rgba(255,255,255,0.6);
+            cursor: pointer;
+            margin-top: 8px;
+            width: 100%;
+            transition: all 0.2s;
+        }
+
+        .pause-btn:hover {
+            background: rgba(255,255,255,0.2);
+            color: white;
+        }
+
+        .copy-link-section {
+            margin-top: 16px;
+            padding-top: 16px;
+            border-top: 1px solid rgba(255,255,255,0.1);
+        }
+
+        .copy-link-box {
+            display: flex;
+            gap: 8px;
+            margin-top: 8px;
+        }
+
+        .copy-link-box input {
+            flex: 1;
+            background: rgba(255,255,255,0.1);
+            border: 1px solid rgba(255,255,255,0.2);
+            border-radius: 8px;
+            padding: 10px;
+            color: white;
+            font-size: 12px;
+            outline: none;
+        }
+
+        .copy-btn {
+            padding: 10px 16px;
+            background: rgba(255,255,255,0.2);
+            border: none;
+            border-radius: 8px;
+            color: white;
+            font-size: 12px;
+            font-weight: 600;
+            cursor: pointer;
+            white-space: nowrap;
+            transition: background 0.2s;
+        }
+
+        .copy-btn:hover {
+            background: rgba(255,255,255,0.3);
+        }
+
+        .modal-overlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: rgba(0,0,0,0.8);
+            display: none;
+            align-items: center;
+            justify-content: center;
+            z-index: 2000;
+        }
+
+        .modal-overlay.show {
+            display: flex;
+        }
+
+        .modal-content {
+            background: rgba(30, 30, 30, 0.98);
+            border: 1px solid rgba(255,255,255,0.2);
+            border-radius: 16px;
+            padding: 24px;
+            width: 90%;
+            max-width: 360px;
+        }
+
+        .modal-content h3 {
+            margin-bottom: 16px;
+            font-size: 18px;
+        }
+
+        .modal-content input {
+            width: 100%;
+            background: rgba(255,255,255,0.1);
+            border: 1px solid rgba(255,255,255,0.2);
+            border-radius: 8px;
+            padding: 12px;
+            color: white;
+            font-size: 14px;
+            margin-bottom: 12px;
+            outline: none;
+        }
+
+        .modal-content input::placeholder {
+            color: rgba(255,255,255,0.4);
+        }
+
+        .modal-buttons {
+            display: flex;
+            gap: 8px;
+            margin-top: 16px;
+        }
+
+        .modal-btn {
+            flex: 1;
+            padding: 12px;
+            border: none;
+            border-radius: 8px;
+            font-size: 14px;
+            cursor: pointer;
+            font-weight: 600;
+        }
+
+        .modal-btn.primary {
+            background: #ff0000;
+            color: white;
+        }
+
+        .modal-btn.secondary {
+            background: rgba(255,255,255,0.1);
+            color: white;
+            border: 1px solid rgba(255,255,255,0.2);
+        }
+
+        .nav-section {
+            width: 100%;
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+            margin-top: auto;
+            padding-top: 16px;
+            border-top: 1px solid rgba(255,255,255,0.1);
+            flex-shrink: 0;
+        }
+
+        .nav-button {
+            width: 100%;
+            padding: 12px;
+            background: rgba(70, 130, 180, 0.2);
+            border: 1.5px solid rgba(70, 130, 180, 0.5);
+            border-radius: 12px;
+            color: white;
+            font-size: 13px;
+            cursor: pointer;
+            transition: all 0.3s;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 6px;
+            font-weight: 600;
+        }
+
+        .nav-button:hover {
+            background: rgba(70, 130, 180, 0.4);
+            transform: translateY(-1px);
+        }
+
+        .nav-button.primary {
+            background: rgba(255,255,255,0.15);
+            border-color: rgba(255,255,255,0.3);
+        }
+
+        .nav-row {
+            display: flex;
+            gap: 8px;
+            width: 100%;
+        }
+
+        .nav-row .nav-button {
+            flex: 1;
+        }
+
+        .thank-you-message {
+            position: absolute;
+            left: calc(100% + 12px);
+            top: 50%;
+            transform: translateY(-50%);
+            background: rgba(0,0,0,0.9);
+            color: #ff6b9d;
+            padding: 10px 18px;
+            border-radius: 20px;
+            font-size: 13px;
+            font-weight: 700;
+            white-space: nowrap;
+            opacity: 0;
+            pointer-events: none;
+            transition: opacity 0.3s;
+            z-index: 50;
+            border: 1px solid rgba(255,255,255,0.1);
+        }
+
+        .thank-you-message.show {
+            opacity: 1;
+            animation: fadeOut 2s forwards;
+        }
+
+        @keyframes fadeOut {
+            0%, 80% { opacity: 1; }
+            100% { opacity: 0; }
+        }
+
+        .fireworks-container {
+            position: absolute;
+            pointer-events: none;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            z-index: 100;
+        }
+
+        .firework {
+            position: absolute;
+            width: 4px;
+            height: 4px;
+            border-radius: 50%;
+            animation: fireworkExplode 1s ease-out forwards;
+        }
+
+        @keyframes fireworkExplode {
+            0% { transform: translate(0, 0) scale(1); opacity: 1; }
+            100% { transform: translate(var(--tx), var(--ty)) scale(0); opacity: 0; }
+        }
+
+        @media (max-width: 768px) {
+            .main-container {
+                flex-direction: column;
+                align-items: center;
+            }
+
+            .control-panel {
+                width: 315px;
+                height: auto;
+                max-height: 600px;
+            }
+
+            .slide-panel {
+                left: 50% !important;
+                top: 50% !important;
+                transform: translate(-50%, -50%);
+                width: 90vw;
+                max-width: 340px;
+            }
+
+            .slide-panel.show {
+                transform: translate(-50%, -50%);
+            }
+
+            .thank-you-message {
+                left: 50%;
+                top: auto;
+                bottom: calc(100% + 8px);
+                transform: translateX(-50%);
+            }
+        }
+    </style>
+</head>
+<body>
+
+    <div class="video-header">
+        <div class="header-logo" id="headerLogo">🐷</div>
+        <div class="header-info">
+            <div class="header-channel">@TidyPiglet</div>
+            <div class="header-title" id="videoTitleDisplay">Dishes compete for the use of tomatoes 🍅 #shortstory</div>
+        </div>
+    </div>
+
+    <div class="main-container">
+        <div class="player-wrapper" id="playerWrapper">
+            <div class="video-container">
+                <div class="loading-overlay" id="loadingOverlay">
+                    <div class="loading-spinner"></div>
+                    <div class="loading-text">Loading cartoon...</div>
+                </div>
+                <div id="youtubeFrame"></div>
+                <div class="controls">
+                    <button class="play-pause-btn" id="playPauseBtn">
+                        <svg id="playIcon" width="16" height="16" viewBox="0 0 24 24" fill="white"><path d="M8 5v14l11-7z"/></svg>
+                        <svg id="pauseIcon" width="16" height="16" viewBox="0 0 24 24" fill="white" style="display: none;"><path d="M6 19h4V5H6v14zm8-14v14h4V5h-4z"/></svg>
+                    </button>
+                    <div class="progress-container" id="progressContainer">
+                        <div class="progress-bar" id="progressBar"></div>
+                    </div>
+                    <div class="time-display" id="timeDisplay">0:00 / 0:00</div>
+                </div>
+            </div>
+        </div>
+
+        <div class="control-panel" id="controlPanel">
+            <div class="action-buttons">
+                <div class="button-group">
+                    <button class="round-button like-button" id="likeBtn" onclick="handleLike()">
+                        <svg viewBox="0 0 24 24"><path d="M1 21h4V9H1v12zm22-11c0-1.1-.9-2-2-2h-6.31l.95-4.57.03-.32c0-.41-.17-.79-.44-1.06L14.17 1 7.59 7.59C7.22 7.95 7 8.45 7 9v10c0 1.1.9 2 2 2h9c.83 0 1.54-.5 1.84-1.22l3.02-7.05c.09-.23.14-.47.14-.73v-2z"/></svg>
+                    </button>
+                    <div class="button-label">Likes</div>
+                    <div class="button-count" id="likeCount">0</div>
+                    <div class="thank-you-message" id="thankYouMsg">Thank you! ❤️</div>
+                    <div class="fireworks-container" id="fireworksContainer"></div>
+                </div>
+
+                <div class="button-group">
+                    <button class="round-button" id="dislikeBtn" onclick="openDislikePanel()">
+                        <svg viewBox="0 0 24 24"><path d="M15 3H6c-.83 0-1.54.5-1.84 1.22l-3.02 7.05c-.09.23-.14.47-.14.73v2c0 1.1.9 2 2 2h6.31l-.95 4.57-.03.32c0 .41.17.79.44 1.06L9.83 23l6.58-6.59c.37-.36.59-.86.59-1.41V5c0-1.1-.9-2-2-2zm4 0v12h4V3h-4z"/></svg>
+                    </button>
+                    <div class="button-label">Dislike</div>
+                </div>
+
+                <div class="button-group">
+                    <button class="round-button" id="commentBtn" onclick="openCommentPanel()">
+                        <svg viewBox="0 0 24 24"><path d="M21.99 4c0-1.1-.89-2-1.99-2H4c-1.1 0-2 .9-2 2v12c0 1.1.9 2 2 2h14l4 4-.01-18zM18 14H6v-2h12v2zm0-3H6V9h12v2zm0-3H6V6h12v2z"/></svg>
+                    </button>
+                    <div class="button-label">Comments</div>
+                    <div class="button-count" id="commentCount">0</div>
+                </div>
+
+                <div class="button-group">
+                    <button class="round-button" id="shareBtn" onclick="openSharePanel()">
+                        <svg viewBox="0 0 24 24"><path d="M18 16.08c-.76 0-1.44.3-1.96.77L8.91 12.7c.05-.23.09-.46.09-.7s-.04-.47-.09-.7l7.05-4.11c.54.5 1.25.81 2.04.81 1.66 0 3-1.34 3-3s-1.34-3-3-3-3 1.34-3 3c0 .24.04.47.09.7L8.04 9.81C7.5 9.31 6.79 9 6 9c-1.66 0-3 1.34-3 3s1.34 3 3 3c.79 0 1.5-.31 2.04-.81l7.12 4.16c-.05.21-.08.43-.08.65 0 1.61 1.31 2.92 2.92 2.92 1.61 0 2.92-1.31 2.92-2.92s-1.31-2.92-2.92-2.92z"/></svg>
+                    </button>
+                    <div class="button-label">Share</div>
+                    <div class="button-count" id="shareCount">0</div>
+                </div>
+            </div>
+
+            <div class="nav-section">
+                <button class="nav-button primary" id="continueBtn" onclick="continueVideo()">
+                    <span>▶</span> Continue Playing
+                </button>
+                <div class="nav-row">
+                    <button class="nav-button" onclick="loadVideo('A6_50UjP10U')">← Prev</button>
+                    <button class="nav-button" onclick="loadVideo('KTc1D9hJq2M')">Next →</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="demo-notice">Using demo data (API key not configured)</div>
+
+    <div class="slide-panel" id="dislikePanel" onclick="event.stopPropagation()">
+        <h3>What didn't you like?</h3>
+        <div class="dislike-grid">
+            <div class="dislike-item" onclick="toggleFeedbackOption('sound', this)">
+                <div class="dislike-option" id="opt-sound">🔊</div>
+                <div class="dislike-option-label">Sound</div>
+            </div>
+            <div class="dislike-item" onclick="toggleFeedbackOption('image', this)">
+                <div class="dislike-option" id="opt-image">🖼️</div>
+                <div class="dislike-option-label">Image</div>
+            </div>
+            <div class="dislike-item" onclick="toggleFeedbackOption('words', this)">
+                <div class="dislike-option" id="opt-words">📝</div>
+                <div class="dislike-option-label">Words</div>
+            </div>
+            <div class="dislike-item" onclick="toggleFeedbackOption('colors', this)">
+                <div class="dislike-option" id="opt-colors">🎨</div>
+                <div class="dislike-option-label">Colors</div>
+            </div>
+            <div class="dislike-item" onclick="toggleFeedbackOption('length', this)">
+                <div class="dislike-option" id="opt-length">⏱️</div>
+                <div class="dislike-option-label">Length</div>
+            </div>
+            <div class="dislike-item" onclick="toggleFeedbackOption('other', this)">
+                <div class="dislike-option" id="opt-other">⚡</div>
+                <div class="dislike-option-label">Other</div>
+            </div>
+        </div>
+        
+        <div class="feedback-summary" id="feedbackSummary">
+            <div style="color: rgba(255,255,255,0.4); font-style: italic;">Click options above to add feedback...</div>
+        </div>
+
+        <button class="submit-btn" onclick="showFeedbackModal()">Submit Feedback</button>
+    </div>
+
+    <div class="slide-panel" id="commentPanel" onclick="event.stopPropagation()">
+        <h3>Comments <span class="comment-stats" id="commentPanelStats">(0 likes total)</span></h3>
+        
+        <button class="add-comment-btn" onclick="showCommentInput()">+ Add your compliment</button>
+        
+        <div class="comment-input-area" id="commentInputArea">
+            <input type="text" id="commenterName" placeholder="Your nickname" maxlength="20">
+            <input type="text" id="complimentText" placeholder="Write a compliment..." maxlength="100">
+            <div class="validation-error" id="validationError">Invalid content</div>
+            <div class="comment-actions">
+                <button class="comment-submit-btn" onclick="submitComment()">Post</button>
+                <button class="comment-cancel-btn" onclick="hideCommentInput()">Cancel</button>
+            </div>
+        </div>
+
+        <div class="comment-list" id="commentList"></div>
+    </div>
+
+    <div class="slide-panel" id="sharePanel" onclick="event.stopPropagation()">
+        <h3>Share</h3>
+        
+        <div class="share-carousel-container">
+            <div class="share-carousel" id="shareCarousel">
+                <div class="share-item" onclick="shareTo('copy')"><div class="share-icon">📋</div><div class="share-label">Copy</div></div>
+                <div class="share-item" onclick="shareTo('facebook')"><div class="share-icon">📘</div><div class="share-label">Facebook</div></div>
+                <div class="share-item" onclick="shareTo('whatsapp')"><div class="share-icon">💬</div><div class="share-label">WhatsApp</div></div>
+                <div class="share-item" onclick="shareTo('x')"><div class="share-icon">𝕏</div><div class="share-label">X</div></div>
+                <div class="share-item" onclick="shareTo('pinterest')"><div class="share-icon">📌</div><div class="share-label">Pinterest</div></div>
+                <div class="share-item" onclick="shareTo('linkedin')"><div class="share-icon">💼</div><div class="share-label">LinkedIn</div></div>
+                <div class="share-item" onclick="shareTo('telegram')"><div class="share-icon">✈️</div><div class="share-label">Telegram</div></div>
+                <div class="share-item" onclick="shareTo('reddit')"><div class="share-icon">🔴</div><div class="share-label">Reddit</div></div>
+                <div class="share-item" onclick="shareTo('email')"><div class="share-icon">✉️</div><div class="share-label">Email</div></div>
+            </div>
+            
+            <div class="carousel-controls">
+                <button class="carousel-arrow" onclick="scrollCarousel(-1)">←</button>
+                <button class="carousel-arrow" onclick="scrollCarousel(1)">→</button>
+            </div>
+            
+            <button class="pause-btn" onclick="toggleCarousel()">Pause Animation</button>
+        </div>
+
+        <div class="copy-link-section">
+            <div style="font-size: 12px; color: rgba(255,255,255,0.6); margin-bottom: 6px;">Video Link</div>
+            <div class="copy-link-box">
+                <input type="text" id="shareLink" readonly value="https://youtube.com/shorts/QRpPorR3XDE">
+                <button class="copy-btn" onclick="copyLink()">Copy</button>
+            </div>
+        </div>
+    </div>
+
+    <div class="modal-overlay" id="feedbackModal" onclick="if(event.target === this) hideFeedbackModal()">
+        <div class="modal-content">
+            <h3>Submit Feedback</h3>
+            <input type="text" id="modalName" placeholder="Your Name (optional)">
+            <input type="email" id="modalEmail" placeholder="Your Email (optional)">
+            <div style="font-size: 12px; color: rgba(255,255,255,0.5); margin-bottom: 12px;">
+                Selected feedback will be submitted.
+            </div>
+            <div class="modal-buttons">
+                <button class="modal-btn secondary" onclick="hideFeedbackModal()">Cancel</button>
+                <button class="modal-btn primary" onclick="confirmFeedback()">Submit</button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // Make all functions global so inline onclick works
+        window.selectedFeedback = [];
+        window.comments = [];
+        window.totalCommentLikes = 0;
+        window.isCarouselPaused = false;
+        window.player = null;
+        window.isReady = false;
+        
+        const STORAGE_KEYS = {
+            COMMENTS: 'tidypiglet_comments',
+            LIKES: 'tidypiglet_likes',
+            COMMENT_LIKES: 'tidypiglet_comment_likes',
+            SHARES: 'tidypiglet_shares',
+            FEEDBACK: 'tidypiglet_feedback'
+        };
+
+        const VIDEOS = {
+            current: 'QRpPorR3XDE',
+            next: 'KTc1D9hJq2M',
+            prev: 'A6_50UjP10U'
+        };
+
+        const INITIAL_COMMENTS = [
+            { id: 1, author: 'CartoonFan', text: 'Absolutely love the animation style! 🎨', likes: 0 },
+            { id: 2, author: 'ArtLover', text: 'So creative and beautifully made!', likes: 0 },
+            { id: 3, author: 'HappyViewer', text: 'Made my day! So clever and funny! 🍅', likes: 0 },
+            { id: 4, author: 'AnimationPro', text: 'Smooth transitions and great storytelling!', likes: 0 },
+            { id: 5, author: 'TomatoLover', text: 'Best food cartoon I have seen!', likes: 0 },
+            { id: 6, author: 'CreativeMind', text: 'Inspiring artwork, keep it up! ✨', likes: 0 },
+            { id: 7, author: 'DailySmile', text: 'Adorable characters and funny plot! 🐷', likes: 0 },
+            { id: 8, author: 'ShortStoryFan', text: 'Perfect short story with great message!', likes: 0 }
+        ];
+
+        // Initialize
+        document.addEventListener('DOMContentLoaded', function() {
+            console.log('Initializing...');
+            loadFromStorage();
+            initYouTube();
+        });
+
+        function loadFromStorage() {
+            const savedComments = localStorage.getItem(STORAGE_KEYS.COMMENTS);
+            if (savedComments) {
+                window.comments = JSON.parse(savedComments);
+            } else {
+                window.comments = [...INITIAL_COMMENTS];
+                saveComments();
+            }
+
+            const savedLikes = localStorage.getItem(STORAGE_KEYS.LIKES);
+            document.getElementById('likeCount').textContent = savedLikes || '0';
+
+            const savedCommentLikes = localStorage.getItem(STORAGE_KEYS.COMMENT_LIKES);
+            if (savedCommentLikes) {
+                const likesMap = JSON.parse(savedCommentLikes);
+                window.comments.forEach(c => {
+                    if (likesMap[c.id] !== undefined) c.likes = likesMap[c.id];
+                });
+            }
+
+            const savedShares = localStorage.getItem(STORAGE_KEYS.SHARES);
+            document.getElementById('shareCount').textContent = savedShares || '0';
+
+            updateCommentDisplay();
+        }
+
+        function saveComments() {
+            localStorage.setItem(STORAGE_KEYS.COMMENTS, JSON.stringify(window.comments));
+        }
+
+        function saveCommentLikes() {
+            const likesMap = {};
+            window.comments.forEach(c => likesMap[c.id] = c.likes || 0);
+            localStorage.setItem(STORAGE_KEYS.COMMENT_LIKES, JSON.stringify(likesMap));
+        }
+
+        // YouTube
+        function initYouTube() {
+            if (typeof YT === 'undefined' || !YT.Player) {
+                setTimeout(initYouTube, 100);
+                return;
+            }
+            
+            window.player = new YT.Player('youtubeFrame', {
+                videoId: VIDEOS.current,
+                playerVars: {
+                    enablejsapi: 1, playsinline: 1, rel: 0, modestbranding: 1,
+                    controls: 0, disablekb: 1, iv_load_policy: 3, autoplay: 0, loop: 1
+                },
+                events: {
+                    onReady: function(e) {
+                        window.isReady = true;
+                        document.getElementById('loadingOverlay').classList.add('hidden');
+                        e.target.playVideo();
+                    },
+                    onStateChange: function(e) {
+                        updatePlayButton(e.data === YT.PlayerState.PLAYING);
+                    }
+                }
+            });
+        }
+
+        function updatePlayButton(isPlaying) {
+            document.getElementById('playIcon').style.display = isPlaying ? 'none' : 'block';
+            document.getElementById('pauseIcon').style.display = isPlaying ? 'block' : 'none';
+        }
+
+        function continueVideo() {
+            if (window.player && window.isReady) window.player.playVideo();
+        }
+
+        function loadVideo(id) {
+            if (window.player && window.isReady) {
+                window.player.loadVideoById(id);
+                closeAllPanels();
+            }
+        }
+
+        // Panel Management
+        function closeAllPanels() {
+            document.querySelectorAll('.slide-panel').forEach(p => p.classList.remove('show'));
+            document.getElementById('feedbackModal').classList.remove('show');
+        }
+
+        function openDislikePanel() {
+            console.log('Opening dislike panel');
+            closeAllPanels();
+            const panel = document.getElementById('dislikePanel');
+            panel.style.left = (window.innerWidth / 2 - 150) + 'px';
+            panel.style.top = (window.innerHeight / 2 - 200) + 'px';
+            panel.classList.add('show');
+        }
+
+        function openCommentPanel() {
+            console.log('Opening comment panel');
+            closeAllPanels();
+            const panel = document.getElementById('commentPanel');
+            panel.style.left = (window.innerWidth / 2 - 150) + 'px';
+            panel.style.top = (window.innerHeight / 2 - 200) + 'px';
+            panel.classList.add('show');
+        }
+
+        function openSharePanel() {
+            console.log('Opening share panel');
+            closeAllPanels();
+            const panel = document.getElementById('sharePanel');
+            panel.style.left = (window.innerWidth / 2 - 150) + 'px';
+            panel.style.top = (window.innerHeight / 2 - 200) + 'px';
+            panel.classList.add('show');
+        }
+
+        // Like
+        window.handleLike = function() {
+            const btn = document.getElementById('likeBtn');
+            const isActive = btn.classList.contains('active');
+            
+            if (!isActive) {
+                btn.classList.add('active');
+                let count = parseInt(document.getElementById('likeCount').textContent) + 1;
+                document.getElementById('likeCount').textContent = count;
+                localStorage.setItem(STORAGE_KEYS.LIKES, count);
+                
+                // Fireworks
+                const container = document.getElementById('fireworksContainer');
+                const colors = ['#ff6b9d', '#4ecdc4', '#ffe66d', '#ff6b6b'];
+                for (let i = 0; i < 12; i++) {
+                    const spark = document.createElement('div');
+                    spark.className = 'firework';
+                    spark.style.background = colors[Math.floor(Math.random() * colors.length)];
+                    spark.style.setProperty('--tx', (Math.cos((i/12)*Math.PI*2) * 60) + 'px');
+                    spark.style.setProperty('--ty', (Math.sin((i/12)*Math.PI*2) * 60) + 'px');
+                    container.appendChild(spark);
+                    setTimeout(() => spark.remove(), 1000);
+                }
+                
+                const msg = document.getElementById('thankYouMsg');
+                msg.classList.add('show');
+                setTimeout(() => msg.classList.remove('show'), 2000);
+            }
+        };
+
+        // Dislike
+        window.toggleFeedbackOption = function(type, element) {
+            const reasons = {
+                sound: "I don't like the sound",
+                image: "I don't like the image",
+                words: "I don't like the words",
+                colors: "I don't like the colors",
+                length: "I don't like the length",
+                other: "Other issue"
+            };
+            
+            const opt = element.querySelector('.dislike-option');
+            const text = reasons[type];
+            
+            if (opt.classList.contains('selected')) {
+                opt.classList.remove('selected');
+                window.selectedFeedback = window.selectedFeedback.filter(r => r !== text);
+            } else {
+                opt.classList.add('selected');
+                window.selectedFeedback.push(text);
+            }
+            
+            updateFeedbackSummary();
+        };
+
+        function updateFeedbackSummary() {
+            const summary = document.getElementById('feedbackSummary');
+            if (window.selectedFeedback.length === 0) {
+                summary.innerHTML = '<div style="color: rgba(255,255,255,0.4); font-style: italic;">Click options above...</div>';
+            } else {
+                summary.innerHTML = window.selectedFeedback.map(item => 
+                    `<div class="feedback-summary-item">${item}</div>`
+                ).join('');
+            }
+        }
+
+        window.showFeedbackModal = function() {
+            if (window.selectedFeedback.length === 0) return;
+            document.getElementById('feedbackModal').classList.add('show');
+        };
+
+        window.hideFeedbackModal = function() {
+            document.getElementById('feedbackModal').classList.remove('show');
+        };
+
+        window.confirmFeedback = function() {
+            const name = document.getElementById('modalName').value || 'Anonymous';
+            const email = document.getElementById('modalEmail').value || 'Not provided';
+            
+            const data = {
+                feedback: window.selectedFeedback,
+                name, email,
+                timestamp: new Date().toISOString(),
+                video: VIDEOS.current
+            };
+            
+            const existing = JSON.parse(localStorage.getItem(STORAGE_KEYS.FEEDBACK) || '[]');
+            existing.push(data);
+            localStorage.setItem(STORAGE_KEYS.FEEDBACK, JSON.stringify(existing));
+            
+            alert('Thank you!');
+            hideFeedbackModal();
+            closeAllPanels();
+            window.selectedFeedback = [];
+            document.querySelectorAll('.dislike-option').forEach(b => b.classList.remove('selected'));
+            updateFeedbackSummary();
+        };
+
+        // Comments
+        function updateCommentDisplay() {
+            const list = document.getElementById('commentList');
+            window.totalCommentLikes = window.comments.reduce((sum, c) => sum + (c.likes || 0), 0);
+            
+            document.getElementById('commentCount').textContent = window.comments.length;
+            document.getElementById('commentPanelStats').textContent = `(${window.totalCommentLikes} likes)`;
+            
+            list.innerHTML = window.comments.map(c => `
+                <div class="comment-item">
+                    <div class="comment-header">
+                        <span class="comment-author">${escapeHtml(c.author)}</span>
+                        <button class="comment-like-btn ${c.liked ? 'liked' : ''}" onclick="likeCommentItem(${c.id})">
+                            ❤️ ${c.likes || 0}
+                        </button>
+                    </div>
+                    <div>${escapeHtml(c.text)}</div>
+                </div>
+            `).join('');
+        }
+
+        window.likeCommentItem = function(id) {
+            const c = window.comments.find(item => item.id === id);
+            if (!c || c.liked) return;
+            
+            c.likes = (c.likes || 0) + 1;
+            c.liked = true;
+            
+            let current = parseInt(document.getElementById('commentCount').textContent);
+            document.getElementById('commentCount').textContent = current + 1;
+            
+            saveComments();
+            saveCommentLikes();
+            updateCommentDisplay();
+        };
+
+        window.showCommentInput = function() {
+            document.getElementById('commentInputArea').classList.add('show');
+        };
+
+        window.hideCommentInput = function() {
+            document.getElementById('commentInputArea').classList.remove('show');
+            document.getElementById('validationError').style.display = 'none';
+        };
+
+        window.submitComment = function() {
+            const name = document.getElementById('commenterName').value.trim();
+            const text = document.getElementById('complimentText').value.trim();
+            const error = document.getElementById('validationError');
+            
+            if (!name || !text) {
+                error.textContent = 'Please enter both fields';
+                error.style.display = 'block';
+                return;
+            }
+            
+            const bad = /(script|javascript|onerror|onload|alert\(|document\.|window\.|<script>|http|www\.|\.com|hacked|hack|spam)/i;
+            if (bad.test(text) || bad.test(name)) {
+                error.textContent = 'Invalid content detected';
+                error.style.display = 'block';
+                return;
+            }
+            
+            const newC = {
+                id: Date.now(),
+                author: name,
+                text: text,
+                likes: 0
+            };
+            
+            window.comments.unshift(newC);
+            saveComments();
+            
+            let cnt = parseInt(document.getElementById('commentCount').textContent);
+            document.getElementById('commentCount').textContent = cnt + 1;
+            
+            document.getElementById('commenterName').value = '';
+            document.getElementById('complimentText').value = '';
+            hideCommentInput();
+            updateCommentDisplay();
+        };
+
+        function escapeHtml(text) {
+            const d = document.createElement('div');
+            d.textContent = text;
+            return d.innerHTML;
+        }
+
+        // Share
+        window.scrollCarousel = function(dir) {
+            document.getElementById('shareCarousel').scrollBy({ left: dir * 150, behavior: 'smooth' });
+        };
+
+        window.toggleCarousel = function() {
+            const c = document.getElementById('shareCarousel');
+            const btn = event.target;
+            window.isCarouselPaused = !window.isCarouselPaused;
+            if (window.isCarouselPaused) {
+                c.style.animation = 'none';
+                btn.textContent = 'Resume Animation';
+            } else {
+                c.style.animation = '';
+                btn.textContent = 'Pause Animation';
+            }
+        };
+
+        window.shareTo = function(platform) {
+            const url = `https://youtube.com/shorts/${VIDEOS.current}`;
+            const txt = 'Check out @TidyPiglet!';
+            
+            switch(platform) {
+                case 'copy': navigator.clipboard.writeText(url); alert('Copied!'); break;
+                case 'email': window.location.href = `mailto:?subject=${txt}&body=${url}`; break;
+                case 'facebook': window.open(`https://www.facebook.com/sharer/sharer.php?u=${encodeURIComponent(url)}`); break;
+                case 'whatsapp': window.open(`https://wa.me/?text=${encodeURIComponent(txt + ' ' + url)}`); break;
+                case 'x': window.open(`https://twitter.com/intent/tweet?url=${encodeURIComponent(url)}`); break;
+                case 'pinterest': window.open(`https://pinterest.com/pin/create/button/?url=${encodeURIComponent(url)}`); break;
+                case 'linkedin': window.open(`https://www.linkedin.com/sharing/share-offsite/?url=${encodeURIComponent(url)}`); break;
+                case 'telegram': window.open(`https://t.me/share/url?url=${encodeURIComponent(url)}`); break;
+                case 'reddit': window.open(`https://reddit.com/submit?url=${encodeURIComponent(url)}`); break;
+            }
+            
+            let s = parseInt(document.getElementById('shareCount').textContent) + 1;
+            document.getElementById('shareCount').textContent = s;
+            localStorage.setItem(STORAGE_KEYS.SHARES, s);
+        };
+
+        window.copyLink = function() {
+            const i = document.getElementById('shareLink');
+            i.select();
+            document.execCommand('copy');
+            event.target.textContent = 'Copied!';
+            setTimeout(() => event.target.textContent = 'Copy', 1500);
+        };
+
+        // Close on outside click
+        document.addEventListener('click', function(e) {
+            if (!e.target.closest('.button-group') && 
+                !e.target.closest('.slide-panel') && 
+                !e.target.closest('.modal-overlay')) {
+                closeAllPanels();
+            }
+        });
+    </script>
+</body>
+</html>
