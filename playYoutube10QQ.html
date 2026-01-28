@@ -1,0 +1,1009 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>YouTube Shorts Player - @TidyPiglet</title>
+    
+    <style>
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Arial, sans-serif;
+            background: #0f0f0f;
+            min-height: 100vh;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            padding: 20px;
+            color: white;
+        }
+
+        .demo-notice {
+            margin-top: 12px;
+            font-size: 12px;
+            color: rgba(255, 255, 255, 0.5);
+            text-align: center;
+            font-style: italic;
+        }
+
+        .error-banner {
+            background: rgba(255, 0, 0, 0.2);
+            border: 1px solid rgba(255, 0, 0, 0.5);
+            color: #ff6b6b;
+            padding: 10px 20px;
+            border-radius: 8px;
+            margin-bottom: 10px;
+            display: none;
+            font-size: 14px;
+        }
+
+        .error-banner.show {
+            display: block;
+        }
+
+        .video-header {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            margin-bottom: 16px;
+            padding: 12px 16px;
+            background: rgba(30, 30, 30, 0.6);
+            backdrop-filter: blur(10px);
+            border-radius: 16px;
+            border: 1px solid rgba(255,255,255,0.1);
+            width: 100%;
+            max-width: 600px;
+            justify-content: center;
+        }
+
+        .header-logo {
+            width: 48px;
+            height: 48px;
+            border-radius: 50%;
+            background: linear-gradient(135deg, #ff6b9d, #4ecdc4);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 24px;
+            border: 2px solid rgba(255,255,255,0.2);
+            overflow: hidden;
+            flex-shrink: 0;
+        }
+
+        .header-info {
+            text-align: left;
+        }
+
+        .header-channel {
+            font-size: 16px;
+            font-weight: 700;
+            color: white;
+            margin-bottom: 2px;
+        }
+
+        .header-title {
+            font-size: 14px;
+            color: rgba(255,255,255,0.8);
+            line-height: 1.3;
+        }
+
+        .main-container {
+            display: flex;
+            gap: 24px;
+            align-items: flex-start;
+            justify-content: center;
+            width: 100%;
+            max-width: 900px;
+            flex-wrap: wrap;
+        }
+
+        .player-wrapper {
+            position: relative;
+            width: 315px;
+            height: 560px;
+            background: #000;
+            border-radius: 16px;
+            overflow: hidden;
+            box-shadow: 0 20px 60px rgba(0,0,0,0.8);
+            flex-shrink: 0;
+        }
+
+        .video-container {
+            position: relative;
+            width: 100%;
+            height: 100%;
+            background: #000;
+        }
+
+        #videoElement {
+            width: 100%;
+            height: 100%;
+            border: none;
+            display: block;
+        }
+
+        .loading-overlay {
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: rgba(0,0,0,0.9);
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            color: white;
+            z-index: 10;
+        }
+
+        .loading-spinner {
+            width: 40px;
+            height: 40px;
+            border: 3px solid rgba(255,255,255,0.3);
+            border-top-color: #ff0000;
+            border-radius: 50%;
+            animation: spin 1s linear infinite;
+        }
+
+        @keyframes spin {
+            to { transform: rotate(360deg); }
+        }
+
+        .controls {
+            position: absolute;
+            bottom: 0;
+            left: 0;
+            right: 0;
+            padding: 20px;
+            background: linear-gradient(to top, rgba(0,0,0,0.8), transparent);
+            display: flex;
+            align-items: center;
+            gap: 15px;
+            z-index: 5;
+            opacity: 0;
+            transition: opacity 0.3s;
+        }
+
+        .player-wrapper:hover .controls {
+            opacity: 1;
+        }
+
+        .play-pause-btn {
+            width: 40px;
+            height: 40px;
+            border-radius: 50%;
+            background: rgba(255,255,255,0.2);
+            border: none;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: white;
+            transition: transform 0.2s;
+            flex-shrink: 0;
+        }
+
+        .play-pause-btn:hover {
+            transform: scale(1.1);
+            background: rgba(255,255,255,0.3);
+        }
+
+        .progress-container {
+            flex: 1;
+            height: 4px;
+            background: rgba(255,255,255,0.2);
+            border-radius: 2px;
+            cursor: pointer;
+            position: relative;
+        }
+
+        .progress-bar {
+            height: 100%;
+            background: #ff0000;
+            border-radius: 2px;
+            width: 0%;
+        }
+
+        .time-display {
+            color: white;
+            font-size: 12px;
+            min-width: 50px;
+            text-align: right;
+        }
+
+        .control-panel {
+            width: 280px;
+            height: 560px;
+            background: rgba(30, 30, 30, 0.6);
+            backdrop-filter: blur(20px);
+            border-radius: 16px;
+            padding: 24px 16px;
+            display: flex;
+            flex-direction: column;
+            gap: 20px;
+            border: 1px solid rgba(255,255,255,0.1);
+            overflow-y: auto;
+            scrollbar-width: thin;
+        }
+
+        .control-panel::-webkit-scrollbar {
+            width: 6px;
+        }
+
+        .control-panel::-webkit-scrollbar-thumb {
+            background: rgba(255,255,255,0.2);
+            border-radius: 3px;
+        }
+
+        .action-buttons {
+            display: flex;
+            flex-direction: column;
+            gap: 20px;
+            align-items: center;
+            width: 100%;
+            padding-top: 10px;
+        }
+
+        .button-group {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            position: relative;
+            width: 100%;
+        }
+
+        .round-button {
+            width: 64px;
+            height: 64px;
+            border-radius: 50%;
+            background: rgba(255,255,255,0.1);
+            border: 2px solid rgba(255,255,255,0.2);
+            color: white;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            transition: all 0.3s ease;
+        }
+
+        .round-button:hover {
+            background: rgba(255,255,255,0.2);
+            transform: scale(1.1);
+            border-color: rgba(255,255,255,0.4);
+        }
+
+        .round-button.active {
+            background: rgba(255,0,0,0.8);
+            border-color: #ff0000;
+        }
+
+        .button-label {
+            font-size: 12px;
+            color: rgba(255,255,255,0.9);
+            margin-top: 6px;
+            font-weight: 600;
+        }
+
+        .button-count {
+            font-size: 11px;
+            color: rgba(255,255,255,0.6);
+            margin-top: 2px;
+        }
+
+        /* Panels */
+        .panel {
+            display: none;
+            position: absolute;
+            left: 50%;
+            top: 50%;
+            transform: translate(-50%, -50%);
+            background: rgba(20, 20, 20, 0.98);
+            border: 1px solid rgba(255,255,255,0.2);
+            border-radius: 16px;
+            padding: 20px;
+            width: 90%;
+            max-width: 320px;
+            z-index: 1000;
+            max-height: 80vh;
+            overflow-y: auto;
+        }
+
+        .panel.active {
+            display: block;
+        }
+
+        .panel-overlay {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: rgba(0,0,0,0.7);
+            z-index: 999;
+        }
+
+        .panel-overlay.active {
+            display: block;
+        }
+
+        .panel h3 {
+            font-size: 16px;
+            margin-bottom: 16px;
+            color: white;
+            font-weight: 700;
+            border-bottom: 1px solid rgba(255,255,255,0.1);
+            padding-bottom: 8px;
+        }
+
+        .close-panel {
+            position: absolute;
+            top: 10px;
+            right: 15px;
+            background: none;
+            border: none;
+            color: white;
+            font-size: 20px;
+            cursor: pointer;
+        }
+
+        .dislike-grid {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 10px;
+            margin-bottom: 16px;
+        }
+
+        .dislike-btn {
+            padding: 12px;
+            background: rgba(255,255,255,0.1);
+            border: 2px solid rgba(255,255,255,0.2);
+            border-radius: 12px;
+            color: white;
+            cursor: pointer;
+            text-align: center;
+            font-size: 20px;
+            transition: all 0.2s;
+        }
+
+        .dislike-btn:hover {
+            background: rgba(255,0,0,0.3);
+            border-color: rgba(255,0,0,0.5);
+        }
+
+        .dislike-btn.selected {
+            background: rgba(255,0,0,0.6);
+            border-color: #ff0000;
+        }
+
+        .feedback-summary {
+            background: rgba(255,255,255,0.05);
+            border-radius: 8px;
+            padding: 12px;
+            margin-bottom: 12px;
+            font-size: 13px;
+            min-height: 60px;
+        }
+
+        .submit-btn {
+            width: 100%;
+            padding: 12px;
+            background: #ff0000;
+            border: none;
+            border-radius: 8px;
+            color: white;
+            font-size: 14px;
+            font-weight: 600;
+            cursor: pointer;
+            margin-top: 10px;
+        }
+
+        .submit-btn:disabled {
+            background: rgba(255,255,255,0.1);
+            color: rgba(255,255,255,0.4);
+        }
+
+        .comment-list {
+            max-height: 200px;
+            overflow-y: auto;
+            margin-bottom: 12px;
+        }
+
+        .comment-item {
+            padding: 10px;
+            background: rgba(255,255,255,0.05);
+            border-radius: 8px;
+            margin-bottom: 8px;
+            position: relative;
+        }
+
+        .comment-author {
+            font-weight: 700;
+            color: #4ecdc4;
+            font-size: 12px;
+            margin-bottom: 4px;
+        }
+
+        .comment-like {
+            position: absolute;
+            right: 10px;
+            top: 10px;
+            background: rgba(255,255,255,0.1);
+            border: none;
+            border-radius: 12px;
+            padding: 4px 8px;
+            color: white;
+            font-size: 11px;
+            cursor: pointer;
+        }
+
+        .comment-like.liked {
+            background: rgba(255,0,0,0.6);
+        }
+
+        .add-comment-btn {
+            width: 100%;
+            padding: 10px;
+            background: rgba(255,255,255,0.1);
+            border: 2px dashed rgba(255,255,255,0.3);
+            border-radius: 8px;
+            color: white;
+            margin-bottom: 10px;
+            cursor: pointer;
+        }
+
+        .comment-form {
+            display: none;
+            flex-direction: column;
+            gap: 8px;
+            margin-bottom: 12px;
+        }
+
+        .comment-form.active {
+            display: flex;
+        }
+
+        .comment-form input {
+            padding: 10px;
+            border-radius: 8px;
+            border: 1px solid rgba(255,255,255,0.2);
+            background: rgba(255,255,255,0.1);
+            color: white;
+        }
+
+        .share-grid {
+            display: grid;
+            grid-template-columns: repeat(4, 1fr);
+            gap: 10px;
+            margin-bottom: 16px;
+        }
+
+        .share-btn {
+            aspect-ratio: 1;
+            background: rgba(255,255,255,0.1);
+            border: 2px solid rgba(255,255,255,0.2);
+            border-radius: 12px;
+            color: white;
+            font-size: 24px;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .share-btn:hover {
+            background: rgba(255,255,255,0.2);
+        }
+
+        .copy-box {
+            display: flex;
+            gap: 8px;
+            margin-top: 12px;
+        }
+
+        .copy-box input {
+            flex: 1;
+            padding: 8px;
+            border-radius: 6px;
+            border: 1px solid rgba(255,255,255,0.2);
+            background: rgba(255,255,255,0.1);
+            color: white;
+        }
+
+        .nav-section {
+            margin-top: auto;
+            padding-top: 16px;
+            border-top: 1px solid rgba(255,255,255,0.1);
+        }
+
+        .nav-button {
+            width: 100%;
+            padding: 12px;
+            background: rgba(70, 130, 180, 0.2);
+            border: 1.5px solid rgba(70, 130, 180, 0.5);
+            border-radius: 12px;
+            color: white;
+            font-size: 13px;
+            cursor: pointer;
+            margin-bottom: 8px;
+            font-weight: 600;
+        }
+
+        .nav-button:hover {
+            background: rgba(70, 130, 180, 0.4);
+        }
+
+        .nav-row {
+            display: flex;
+            gap: 8px;
+        }
+
+        .nav-row .nav-button {
+            flex: 1;
+        }
+
+        .thank-you {
+            position: fixed;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            background: rgba(0,0,0,0.9);
+            color: #ff6b9d;
+            padding: 20px 40px;
+            border-radius: 30px;
+            font-size: 18px;
+            font-weight: 700;
+            display: none;
+            z-index: 2000;
+            border: 2px solid #ff6b9d;
+        }
+
+        .thank-you.show {
+            display: block;
+            animation: fadeOut 2s forwards;
+        }
+
+        @keyframes fadeOut {
+            0%, 80% { opacity: 1; }
+            100% { opacity: 0; }
+        }
+
+        @media (max-width: 768px) {
+            .main-container {
+                flex-direction: column;
+                align-items: center;
+            }
+            
+            .control-panel {
+                width: 315px;
+                height: auto;
+                max-height: 500px;
+            }
+        }
+    </style>
+</head>
+<body>
+
+    <div class="error-banner" id="errorBanner">
+        Error loading content. Please refresh the page.
+    </div>
+
+    <div class="video-header">
+        <div class="header-logo">🐷</div>
+        <div class="header-info">
+            <div class="header-channel">@TidyPiglet</div>
+            <div class="header-title">Dishes compete for tomatoes 🍅</div>
+        </div>
+    </div>
+
+    <div class="main-container">
+        <!-- Video Player with Direct Embed -->
+        <div class="player-wrapper">
+            <div class="video-container" id="videoContainer">
+                <div class="loading-overlay" id="loadingOverlay">
+                    <div class="loading-spinner"></div>
+                    <div style="margin-top: 10px;">Loading...</div>
+                </div>
+                <!-- Direct iframe embed - most reliable method -->
+                <iframe 
+                    id="videoElement"
+                    src="https://www.youtube.com/embed/QRpPorR3XDE?enablejsapi=1&playsinline=1&rel=0&modestbranding=1&controls=0&disablekb=1&iv_load_policy=3&autoplay=0&loop=1&playlist=QRpPorR3XDE"
+                    allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+                    allowfullscreen>
+                </iframe>
+                
+                <div class="controls">
+                    <button class="play-pause-btn" onclick="togglePlay()">
+                        <span id="playIcon">▶</span>
+                    </button>
+                    <div class="progress-container" onclick="seek(event)">
+                        <div class="progress-bar" id="progressBar" style="width: 0%"></div>
+                    </div>
+                    <div class="time-display" id="timeDisplay">0:00</div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Control Panel -->
+        <div class="control-panel">
+            <div class="action-buttons">
+                <!-- Like -->
+                <div class="button-group">
+                    <button class="round-button" id="likeBtn" onclick="handleLike()">
+                        ❤️
+                    </button>
+                    <div class="button-label">Likes</div>
+                    <div class="button-count" id="likeCount">0</div>
+                </div>
+
+                <!-- Dislike -->
+                <div class="button-group">
+                    <button class="round-button" onclick="openPanel('dislikePanel')">
+                        👎
+                    </button>
+                    <div class="button-label">Dislike</div>
+                </div>
+
+                <!-- Comments -->
+                <div class="button-group">
+                    <button class="round-button" onclick="openPanel('commentPanel')">
+                        💬
+                    </button>
+                    <div class="button-label">Comments</div>
+                    <div class="button-count" id="commentCount">0</div>
+                </div>
+
+                <!-- Share -->
+                <div class="button-group">
+                    <button class="round-button" onclick="openPanel('sharePanel')">
+                        📤
+                    </button>
+                    <div class="button-label">Share</div>
+                    <div class="button-count" id="shareCount">0</div>
+                </div>
+            </div>
+
+            <div class="nav-section">
+                <button class="nav-button" onclick="playVideo()" style="background: rgba(255,255,255,0.2);">
+                    ▶ Continue Playing
+                </button>
+                <div class="nav-row">
+                    <button class="nav-button" onclick="alert('Previous video')">← Prev</button>
+                    <button class="nav-button" onclick="alert('Next video')">Next →</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="demo-notice">Using demo data</div>
+
+    <!-- Overlay for panels -->
+    <div class="panel-overlay" id="overlay" onclick="closeAllPanels()"></div>
+
+    <!-- Dislike Panel -->
+    <div class="panel" id="dislikePanel">
+        <button class="close-panel" onclick="closeAllPanels()">×</button>
+        <h3>What didn't you like?</h3>
+        <div class="dislike-grid">
+            <button class="dislike-btn" onclick="toggleDislike(this, 'sound')">🔊<br><small>Sound</small></button>
+            <button class="dislike-btn" onclick="toggleDislike(this, 'image')">🖼️<br><small>Image</small></button>
+            <button class="dislike-btn" onclick="toggleDislike(this, 'words')">📝<br><small>Words</small></button>
+            <button class="dislike-btn" onclick="toggleDislike(this, 'colors')">🎨<br><small>Colors</small></button>
+            <button class="dislike-btn" onclick="toggleDislike(this, 'length')">⏱️<br><small>Length</small></button>
+            <button class="dislike-btn" onclick="toggleDislike(this, 'other')">⚡<br><small>Other</small></button>
+        </div>
+        <div class="feedback-summary" id="feedbackSummary" style="color: rgba(255,255,255,0.5);">
+            Click options above...
+        </div>
+        <input type="text" id="fbName" placeholder="Name (optional)" style="width: 100%; margin-bottom: 8px; padding: 8px; border-radius: 6px; border: 1px solid rgba(255,255,255,0.2); background: rgba(255,255,255,0.1); color: white;">
+        <input type="email" id="fbEmail" placeholder="Email (optional)" style="width: 100%; margin-bottom: 8px; padding: 8px; border-radius: 6px; border: 1px solid rgba(255,255,255,0.2); background: rgba(255,255,255,0.1); color: white;">
+        <button class="submit-btn" onclick="submitFeedback()" id="submitFbBtn" disabled>Submit Feedback</button>
+    </div>
+
+    <!-- Comments Panel -->
+    <div class="panel" id="commentPanel">
+        <button class="close-panel" onclick="closeAllPanels()">×</button>
+        <h3>Comments (<span id="panelCommentCount">0</span>)</h3>
+        <button class="add-comment-btn" onclick="document.getElementById('commentForm').classList.toggle('active')">
+            + Add your compliment
+        </button>
+        <div class="comment-form" id="commentForm">
+            <input type="text" id="newName" placeholder="Your name">
+            <input type="text" id="newComment" placeholder="Your compliment">
+            <button class="submit-btn" onclick="addComment()">Post</button>
+        </div>
+        <div class="comment-list" id="commentList"></div>
+    </div>
+
+    <!-- Share Panel -->
+    <div class="panel" id="sharePanel">
+        <button class="close-panel" onclick="closeAllPanels()">×</button>
+        <h3>Share</h3>
+        <div class="share-grid">
+            <button class="share-btn" onclick="doShare('copy')">📋</button>
+            <button class="share-btn" onclick="doShare('facebook')">📘</button>
+            <button class="share-btn" onclick="doShare('whatsapp')">💬</button>
+            <button class="share-btn" onclick="doShare('x')">𝕏</button>
+            <button class="share-btn" onclick="doShare('pinterest')">📌</button>
+            <button class="share-btn" onclick="doShare('linkedin')">💼</button>
+            <button class="share-btn" onclick="doShare('telegram')">✈️</button>
+            <button class="share-btn" onclick="doShare('email')">✉️</button>
+        </div>
+        <div class="copy-box">
+            <input type="text" value="https://youtube.com/shorts/QRpPorR3XDE" id="shareUrl" readonly>
+            <button class="submit-btn" style="width: auto; margin-top: 0;" onclick="copyShare()">Copy</button>
+        </div>
+    </div>
+
+    <div class="thank-you" id="thankYou">Thank you! ❤️</div>
+
+    <script>
+        // Data
+        let selectedFeedback = [];
+        let comments = JSON.parse(localStorage.getItem('comments')) || [
+            {id: 1, author: 'Fan1', text: 'Love it! 🎨', likes: 0},
+            {id: 2, author: 'Fan2', text: 'Amazing colors!', likes: 0},
+            {id: 3, author: 'Fan3', text: 'So creative!', likes: 0},
+            {id: 4, author: 'Fan4', text: 'Best cartoon!', likes: 0},
+            {id: 5, author: 'Fan5', text: 'Adorable 🐷', likes: 0},
+            {id: 6, author: 'Fan6', text: 'Made my day!', likes: 0},
+            {id: 7, author: 'Fan7', text: 'Wonderful!', likes: 0},
+            {id: 8, author: 'Fan8', text: 'Perfect!', likes: 0}
+        ];
+        
+        // Load saved data
+        const likes = localStorage.getItem('likes') || '0';
+        const shares = localStorage.getItem('shares') || '0';
+        document.getElementById('likeCount').textContent = likes;
+        document.getElementById('shareCount').textContent = shares;
+        document.getElementById('commentCount').textContent = comments.length;
+        
+        // Remove loading overlay when video loads
+        document.getElementById('videoElement').onload = function() {
+            document.getElementById('loadingOverlay').style.display = 'none';
+        };
+        
+        // Fallback if loading takes too long
+        setTimeout(() => {
+            document.getElementById('loadingOverlay').style.display = 'none';
+        }, 3000);
+
+        // Panel functions
+        function openPanel(id) {
+            closeAllPanels();
+            document.getElementById('overlay').classList.add('active');
+            document.getElementById(id).classList.add('active');
+            
+            if (id === 'commentPanel') renderComments();
+        }
+
+        function closeAllPanels() {
+            document.getElementById('overlay').classList.remove('active');
+            document.querySelectorAll('.panel').forEach(p => p.classList.remove('active'));
+        }
+
+        // Like
+        function handleLike() {
+            const btn = document.getElementById('likeBtn');
+            if (!btn.classList.contains('active')) {
+                btn.classList.add('active');
+                let count = parseInt(document.getElementById('likeCount').textContent) + 1;
+                document.getElementById('likeCount').textContent = count;
+                localStorage.setItem('likes', count);
+                showThankYou();
+            }
+        }
+
+        function showThankYou() {
+            const el = document.getElementById('thankYou');
+            el.classList.add('show');
+            setTimeout(() => el.classList.remove('show'), 2000);
+        }
+
+        // Dislike
+        function toggleDislike(btn, type) {
+            const reasons = {
+                sound: "I don't like the sound",
+                image: "I don't like the image", 
+                words: "I don't like the words",
+                colors: "I don't like the colors",
+                length: "I don't like the length",
+                other: "Other issue"
+            };
+            
+            btn.classList.toggle('selected');
+            
+            if (btn.classList.contains('selected')) {
+                selectedFeedback.push(reasons[type]);
+            } else {
+                selectedFeedback = selectedFeedback.filter(r => r !== reasons[type]);
+            }
+            
+            updateFeedbackDisplay();
+        }
+
+        function updateFeedbackDisplay() {
+            const summary = document.getElementById('feedbackSummary');
+            const submitBtn = document.getElementById('submitFbBtn');
+            
+            if (selectedFeedback.length === 0) {
+                summary.textContent = 'Click options above...';
+                summary.style.color = 'rgba(255,255,255,0.5)';
+                submitBtn.disabled = true;
+            } else {
+                summary.innerHTML = selectedFeedback.map(s => `• ${s}`).join('<br>');
+                summary.style.color = 'white';
+                submitBtn.disabled = false;
+            }
+        }
+
+        function submitFeedback() {
+            const data = {
+                feedback: selectedFeedback,
+                name: document.getElementById('fbName').value || 'Anonymous',
+                email: document.getElementById('fbEmail').value || 'Not provided',
+                time: new Date().toISOString()
+            };
+            
+            const existing = JSON.parse(localStorage.getItem('feedback') || '[]');
+            existing.push(data);
+            localStorage.setItem('feedback', JSON.stringify(existing));
+            
+            alert('Thank you for your feedback!');
+            closeAllPanels();
+            selectedFeedback = [];
+            document.querySelectorAll('.dislike-btn').forEach(b => b.classList.remove('selected'));
+            updateFeedbackDisplay();
+            document.getElementById('fbName').value = '';
+            document.getElementById('fbEmail').value = '';
+        }
+
+        // Comments
+        function renderComments() {
+            const list = document.getElementById('commentList');
+            const totalLikes = comments.reduce((sum, c) => sum + (c.likes || 0), 0);
+            document.getElementById('panelCommentCount').textContent = comments.length + ' (' + totalLikes + ' likes)';
+            
+            list.innerHTML = comments.map(c => `
+                <div class="comment-item">
+                    <div class="comment-author">${escapeHtml(c.author)}</div>
+                    <div>${escapeHtml(c.text)}</div>
+                    <button class="comment-like ${c.liked ? 'liked' : ''}" onclick="likeComment(${c.id})">
+                        ❤️ ${c.likes || 0}
+                    </button>
+                </div>
+            `).join('');
+        }
+
+        function likeComment(id) {
+            const c = comments.find(x => x.id === id);
+            if (!c || c.liked) return;
+            
+            c.likes = (c.likes || 0) + 1;
+            c.liked = true;
+            
+            // Increment total comment count display
+            let current = parseInt(document.getElementById('commentCount').textContent);
+            document.getElementById('commentCount').textContent = current + 1;
+            
+            localStorage.setItem('comments', JSON.stringify(comments));
+            saveCommentLikes();
+            renderComments();
+        }
+
+        function saveCommentLikes() {
+            const map = {};
+            comments.forEach(c => map[c.id] = c.likes || 0);
+            localStorage.setItem('commentLikes', JSON.stringify(map));
+        }
+
+        function addComment() {
+            const name = document.getElementById('newName').value.trim();
+            const text = document.getElementById('newComment').value.trim();
+            
+            if (!name || !text) {
+                alert('Please fill in both fields');
+                return;
+            }
+            
+            // Basic spam check
+            const spam = /(script|javascript|<|http|\.com|\.exe|hack|spam)/i;
+            if (spam.test(name) || spam.test(text)) {
+                alert('Invalid content detected');
+                return;
+            }
+            
+            comments.unshift({
+                id: Date.now(),
+                author: name,
+                text: text,
+                likes: 0
+            });
+            
+            localStorage.setItem('comments', JSON.stringify(comments));
+            document.getElementById('commentCount').textContent = comments.length;
+            document.getElementById('newName').value = '';
+            document.getElementById('newComment').value = '';
+            document.getElementById('commentForm').classList.remove('active');
+            renderComments();
+        }
+
+        function escapeHtml(text) {
+            const div = document.createElement('div');
+            div.textContent = text;
+            return div.innerHTML;
+        }
+
+        // Share
+        function doShare(platform) {
+            const url = 'https://youtube.com/shorts/QRpPorR3XDE';
+            const text = 'Check out @TidyPiglet!';
+            
+            switch(platform) {
+                case 'copy': 
+                    navigator.clipboard.writeText(url); 
+                    alert('Link copied!'); 
+                    break;
+                case 'facebook': window.open(`https://www.facebook.com/sharer/sharer.php?u=${url}`); break;
+                case 'whatsapp': window.open(`https://wa.me/?text=${encodeURIComponent(text + ' ' + url)}`); break;
+                case 'x': window.open(`https://twitter.com/intent/tweet?url=${url}`); break;
+                case 'pinterest': window.open(`https://pinterest.com/pin/create/button/?url=${url}`); break;
+                case 'linkedin': window.open(`https://www.linkedin.com/sharing/share-offsite/?url=${url}`); break;
+                case 'telegram': window.open(`https://t.me/share/url?url=${url}`); break;
+                case 'email': window.location.href = `mailto:?subject=${text}&body=${url}`; break;
+            }
+            
+            let s = parseInt(document.getElementById('shareCount').textContent) + 1;
+            document.getElementById('shareCount').textContent = s;
+            localStorage.setItem('shares', s);
+        }
+
+        function copyShare() {
+            const input = document.getElementById('shareUrl');
+            input.select();
+            document.execCommand('copy');
+            alert('Copied!');
+        }
+
+        // Video controls
+        function togglePlay() {
+            // Simple reload trick for iframe play
+            const iframe = document.getElementById('videoElement');
+            const src = iframe.src;
+            if (src.includes('autoplay=0')) {
+                iframe.src = src.replace('autoplay=0', 'autoplay=1');
+                document.getElementById('playIcon').textContent = '⏸';
+            } else {
+                iframe.src = src.replace('autoplay=1', 'autoplay=0');
+                document.getElementById('playIcon').textContent = '▶';
+            }
+        }
+
+        function playVideo() {
+            const iframe = document.getElementById('videoElement');
+            if (iframe.src.includes('autoplay=0')) {
+                iframe.src = iframe.src.replace('autoplay=0', 'autoplay=1');
+            }
+        }
+
+        function seek(e) {
+            // Visual only for demo
+            const rect = e.currentTarget.getBoundingClientRect();
+            const percent = (e.clientX - rect.left) / rect.width;
+            document.getElementById('progressBar').style.width = (percent * 100) + '%';
+        }
+
+        // Close on escape key
+        document.addEventListener('keydown', (e) => {
+            if (e.key === 'Escape') closeAllPanels();
+        });
+    </script>
+</body>
+</html>
